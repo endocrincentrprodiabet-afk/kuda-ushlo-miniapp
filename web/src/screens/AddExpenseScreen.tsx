@@ -50,7 +50,7 @@ export function AddExpenseScreen({ onAddExpense, onNavigate }: AddExpenseScreenP
       </header>
 
       <form className="form-card" onSubmit={handleSubmit}>
-        <label>
+        <label className="amount-field">
           <span>Сумма</span>
           <input
             inputMode="decimal"

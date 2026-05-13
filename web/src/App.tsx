@@ -49,7 +49,6 @@ export default function App() {
         <HomeScreen
           expenses={expenses}
           settings={settings}
-          reportText={reportText}
           onNavigate={setScreen}
           onSendReport={handleSendReport}
         />

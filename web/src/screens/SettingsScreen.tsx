@@ -34,10 +34,10 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
           <input inputMode="decimal" min="0" onChange={(event) => setDailyLimit(event.target.value)} type="number" value={dailyLimit} />
         </label>
 
-        <label>
+        <div className="setting-row">
           <span>Валюта</span>
-          <input disabled type="text" value={settings.currency} />
-        </label>
+          <strong>{settings.currency}</strong>
+        </div>
 
         {saved ? <p className="success-text">Настройки сохранены</p> : null}
 

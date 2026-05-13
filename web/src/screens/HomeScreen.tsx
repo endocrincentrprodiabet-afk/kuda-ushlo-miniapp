@@ -6,12 +6,11 @@ import type { Expense, Screen, Settings } from '../types';
 type HomeScreenProps = {
   expenses: Expense[];
   settings: Settings;
-  reportText: string;
   onNavigate: (screen: Screen) => void;
   onSendReport: () => void;
 };
 
-export function HomeScreen({ expenses, settings, reportText, onNavigate, onSendReport }: HomeScreenProps) {
+export function HomeScreen({ expenses, settings, onNavigate, onSendReport }: HomeScreenProps) {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
@@ -92,13 +91,6 @@ export function HomeScreen({ expenses, settings, reportText, onNavigate, onSendR
           Отправить отчёт
         </button>
       </div>
-
-      {reportText ? (
-        <section className="card">
-          <h2>Отчёт</h2>
-          <pre className="report">{reportText}</pre>
-        </section>
-      ) : null}
     </main>
   );
 }

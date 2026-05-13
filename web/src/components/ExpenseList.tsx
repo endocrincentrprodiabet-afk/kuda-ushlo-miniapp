@@ -18,16 +18,18 @@ export function ExpenseList({ expenses, currency, emptyText, onDelete }: Expense
     <div className="expense-list">
       {expenses.map((expense) => (
         <article className="expense-item" key={expense.id}>
-          <div>
-            <div className="expense-row">
-              <strong>{expense.category}</strong>
-              <strong>{formatMoney(expense.amount, currency)}</strong>
+          <div className="expense-content">
+            <div className="expense-head">
+              <strong className="expense-category">{expense.category}</strong>
+              <strong className="expense-amount">{formatMoney(expense.amount, currency)}</strong>
             </div>
-            <p>{expense.note || 'Без комментария'}</p>
-            <span>{formatDate(expense.date)}</span>
+            <div className="expense-meta">
+              <span>{expense.note || 'Без комментария'}</span>
+              <span>{formatDate(expense.date)}</span>
+            </div>
           </div>
           {onDelete ? (
-            <button className="text-button danger" onClick={() => onDelete(expense.id)} type="button">
+            <button className="delete-button" onClick={() => onDelete(expense.id)} type="button">
               Удалить
             </button>
           ) : null}
