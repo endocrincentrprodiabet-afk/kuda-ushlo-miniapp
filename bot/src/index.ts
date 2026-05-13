@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createServer } from 'node:http';
 import { Bot, Keyboard } from 'grammy';
 
 type ExpenseReportPayload = {
@@ -71,6 +72,32 @@ bot.on('message', async (ctx) => {
 bot.catch((error) => {
   console.error('Bot error:', error);
 });
+
+function startHttpServer() {
+  const host = '0.0.0.0';
+  const port = Number(process.env.PORT || 10000);
+
+  const server = createServer((request, response) => {
+    if (request.method === 'GET' && request.url === '/') {
+      response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('kuda-ushlo-bot is running');
+      return;
+    }
+
+    if (request.method === 'GET' && request.url === '/health') {
+      response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('ok');
+      return;
+    }
+
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('not found');
+  });
+
+  server.listen(port, host, () => {
+    console.log(`HTTP server is listening on ${host}:${port}`);
+  });
+}
 
 
 type ParseResult =
@@ -222,6 +249,8 @@ function formatMoney(amount: number, currency: string): string {
 }
 async function main() {
   console.log('Starting bot...');
+
+  startHttpServer();
 
   const botInfo = await bot.api.getMe();
   console.log(`Bot connected: @${botInfo.username}`);
