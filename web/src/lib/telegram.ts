@@ -1,4 +1,4 @@
-import { getCategoryTotals, getTodayExpenses, getWeekExpenses, sumExpenses } from './calculations';
+import { getCategoryTotals, getTodayExpenses, getWeekExpenses, sortByCreatedAt, sumExpenses } from './calculations';
 import { formatMoney } from './format';
 import type { Expense, Settings } from '../types';
 
@@ -10,6 +10,45 @@ declare global {
       };
     };
   }
+}
+
+type TelegramReportPayload = {
+  type: 'expense_report';
+  version: 1;
+  currency: Settings['currency'];
+  period: 'today';
+  generatedAt: string;
+  todayTotal: number;
+  weekTotal: number;
+  dailyLimit: number;
+  limitDiff: number;
+  isLimitExceeded: boolean;
+  categories: Array<{
+    category: string;
+    total: number;
+  }>;
+  recentExpenses: Array<{
+    amount: number;
+    category: string;
+    note: string;
+    date: string;
+  }>;
+};
+
+type TelegramWebApp = NonNullable<NonNullable<Window['Telegram']>['WebApp']>;
+
+function getTelegramWebApp() {
+  const telegram = window.Telegram ?? (window.Telegram = {});
+
+  if (!telegram.WebApp) {
+    telegram.WebApp = {
+      sendData: (data: string) => {
+        console.log('Telegram.WebApp.sendData mock', data);
+      },
+    };
+  }
+
+  return telegram.WebApp as TelegramWebApp;
 }
 
 export function buildTelegramReport(expenses: Expense[], settings: Settings): string {
@@ -39,8 +78,41 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings): st
   ].join('\n');
 }
 
+export function buildTelegramReportPayload(expenses: Expense[], settings: Settings): TelegramReportPayload {
+  const todayTotal = sumExpenses(getTodayExpenses(expenses));
+  const weekExpenses = getWeekExpenses(expenses);
+  const weekTotal = sumExpenses(weekExpenses);
+  const limitDiff = settings.dailyLimit - todayTotal;
+
+  return {
+    type: 'expense_report',
+    version: 1,
+    currency: settings.currency,
+    period: 'today',
+    generatedAt: new Date().toISOString(),
+    todayTotal,
+    weekTotal,
+    dailyLimit: settings.dailyLimit,
+    limitDiff,
+    isLimitExceeded: limitDiff < 0,
+    categories: getCategoryTotals(weekExpenses).map((item) => ({
+      category: item.category,
+      total: item.total,
+    })),
+    recentExpenses: sortByCreatedAt(expenses)
+      .slice(0, 5)
+      .map((expense) => ({
+        amount: expense.amount,
+        category: expense.category,
+        note: expense.note,
+        date: expense.date,
+      })),
+  };
+}
+
 export function sendTelegramReport(expenses: Expense[], settings: Settings): string {
   const report = buildTelegramReport(expenses, settings);
-  window.Telegram?.WebApp?.sendData?.(report);
+  const payload = buildTelegramReportPayload(expenses, settings);
+  getTelegramWebApp().sendData?.(JSON.stringify(payload));
   return report;
 }
