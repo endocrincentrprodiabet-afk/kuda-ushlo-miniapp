@@ -14,7 +14,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
-  const [reportText, setReportText] = useState('');
+  const [reportStatus, setReportStatus] = useState('');
 
   useEffect(() => {
     saveExpenses(expenses);
@@ -36,11 +36,12 @@ export default function App() {
     clearAllData();
     setExpenses([]);
     setSettings(DEFAULT_SETTINGS);
-    setReportText('');
+    setReportStatus('');
   }
 
   function handleSendReport() {
-    setReportText(sendTelegramReport(expenses, settings));
+    const result = sendTelegramReport(expenses, settings);
+    setReportStatus(result.statusMessage);
   }
 
   return (
@@ -51,6 +52,7 @@ export default function App() {
           settings={settings}
           onNavigate={setScreen}
           onSendReport={handleSendReport}
+          reportStatus={reportStatus}
         />
       ) : null}
 

@@ -8,9 +8,10 @@ type HomeScreenProps = {
   settings: Settings;
   onNavigate: (screen: Screen) => void;
   onSendReport: () => void;
+  reportStatus: string;
 };
 
-export function HomeScreen({ expenses, settings, onNavigate, onSendReport }: HomeScreenProps) {
+export function HomeScreen({ expenses, settings, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
@@ -18,6 +19,9 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport }: Hom
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortByCreatedAt(expenses).slice(0, 4);
   const limitDiff = settings.dailyLimit - todayTotal;
+  const hasDailyLimit = settings.dailyLimit > 0;
+  const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';
+  const dailyBalanceCaption = limitDiff >= 0 ? 'Ты в пределах лимита' : 'Лимит превышен';
 
   return (
     <main className="screen">
@@ -32,11 +36,23 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport }: Hom
         <span>Сегодня потрачено</span>
         <strong>{formatMoney(todayTotal, settings.currency)}</strong>
         <p>
-          {limitDiff >= 0
-            ? `Осталось ${formatMoney(limitDiff, settings.currency)} из дневного лимита`
-            : `Лимит превышен на ${formatMoney(Math.abs(limitDiff), settings.currency)}`}
+          {hasDailyLimit
+            ? limitDiff >= 0
+              ? `Осталось ${formatMoney(limitDiff, settings.currency)} из дневного лимита`
+              : `Лимит превышен на ${formatMoney(Math.abs(limitDiff), settings.currency)}`
+            : 'Дневной лимит можно задать в настройках'}
         </p>
       </section>
+
+      {hasDailyLimit ? (
+        <section className={`balance-card ${limitDiff >= 0 ? 'balance-card--safe' : 'balance-card--over'}`}>
+          <div>
+            <span>{dailyBalanceTitle}</span>
+            <strong>{formatMoney(Math.abs(limitDiff), settings.currency)}</strong>
+          </div>
+          <p>{dailyBalanceCaption}</p>
+        </section>
+      ) : null}
 
       <div className="grid-two">
         <section className="card">
@@ -90,6 +106,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport }: Hom
         <button className="secondary-button" onClick={onSendReport} type="button">
           Отправить отчёт
         </button>
+        {reportStatus ? <p className="status-message">{reportStatus}</p> : null}
       </div>
     </main>
   );

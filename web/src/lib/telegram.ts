@@ -38,23 +38,16 @@ type TelegramReportPayload = {
 
 type TelegramWebApp = NonNullable<NonNullable<Window['Telegram']>['WebApp']>;
 
-function getTelegramWebApp(): { webApp: TelegramWebApp; isMock: boolean } {
+type SendTelegramReportResult = {
+  report: string;
+  statusMessage: string;
+  sentToTelegram: boolean;
+};
+
+function getTelegramWebApp(): TelegramWebApp | null {
   const webApp = window.Telegram?.WebApp;
 
-  if (webApp?.sendData) {
-    return { webApp, isMock: false };
-  }
-
-  const telegram = window.Telegram ?? (window.Telegram = {});
-  const mockWebApp: TelegramWebApp = {
-    sendData: (data: string) => {
-      console.log('Telegram.WebApp.sendData mock', data);
-    },
-  };
-
-  telegram.WebApp = mockWebApp;
-
-  return { webApp: mockWebApp, isMock: true };
+  return webApp?.sendData ? webApp : null;
 }
 
 export function buildTelegramReport(expenses: Expense[], settings: Settings): string {
@@ -116,17 +109,27 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
   };
 }
 
-export function sendTelegramReport(expenses: Expense[], settings: Settings): string {
+export function sendTelegramReport(expenses: Expense[], settings: Settings): SendTelegramReportResult {
   const report = buildTelegramReport(expenses, settings);
   const payload = buildTelegramReportPayload(expenses, settings);
-  const { webApp, isMock } = getTelegramWebApp();
+  const webApp = getTelegramWebApp();
 
-  console.log('Sending Telegram report payload', payload);
-  webApp.sendData(JSON.stringify(payload));
+  if (!webApp) {
+    console.log('Telegram report payload', JSON.stringify(payload));
 
-  if (!isMock) {
-    webApp.close?.();
+    return {
+      report,
+      statusMessage: 'Отчёт сформирован. В Telegram он будет отправлен боту.',
+      sentToTelegram: false,
+    };
   }
 
-  return report;
+  webApp.sendData(JSON.stringify(payload));
+  webApp.close?.();
+
+  return {
+    report,
+    statusMessage: 'Отчёт отправлен в Telegram.',
+    sentToTelegram: true,
+  };
 }
