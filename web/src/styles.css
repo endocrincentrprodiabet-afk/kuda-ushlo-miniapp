@@ -324,6 +324,12 @@ h2 {
 .nav-button {
   border: 0;
   border-radius: 12px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 90ms ease;
 }
 
 .primary-button,
@@ -340,12 +346,19 @@ h2 {
 
 .primary-button:active {
   background: var(--accent-pressed);
+  transform: scale(0.98);
 }
 
 .secondary-button {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--text);
+}
+
+.secondary-button:active,
+.chip:active,
+.segmented button:active {
+  transform: scale(0.98);
 }
 
 .text-button,
@@ -362,6 +375,12 @@ h2 {
   color: var(--danger);
   font-size: 13px;
   font-weight: 500;
+}
+
+.text-button:active,
+.delete-button:active,
+.nav-button:active {
+  transform: scale(0.97);
 }
 
 .danger {
@@ -546,6 +565,40 @@ input:focus {
 .nav-button.active {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+@media (hover: hover) {
+  .primary-button:hover {
+    background: var(--accent-pressed);
+  }
+
+  .secondary-button:hover,
+  .chip:hover,
+  .segmented button:hover {
+    background: var(--surface-soft);
+  }
+
+  .text-button:hover,
+  .delete-button:hover {
+    opacity: 0.75;
+  }
+
+  .nav-button:hover {
+    background: var(--surface-soft);
+    color: var(--text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-button,
+  .secondary-button,
+  .text-button,
+  .delete-button,
+  .chip,
+  .segmented button,
+  .nav-button {
+    transition: none;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

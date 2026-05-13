@@ -6,7 +6,8 @@ declare global {
   interface Window {
     Telegram?: {
       WebApp?: {
-        sendData?: (data: string) => void;
+        sendData: (data: string) => void;
+        close?: () => void;
       };
     };
   }
@@ -37,18 +38,23 @@ type TelegramReportPayload = {
 
 type TelegramWebApp = NonNullable<NonNullable<Window['Telegram']>['WebApp']>;
 
-function getTelegramWebApp() {
-  const telegram = window.Telegram ?? (window.Telegram = {});
+function getTelegramWebApp(): { webApp: TelegramWebApp; isMock: boolean } {
+  const webApp = window.Telegram?.WebApp;
 
-  if (!telegram.WebApp) {
-    telegram.WebApp = {
-      sendData: (data: string) => {
-        console.log('Telegram.WebApp.sendData mock', data);
-      },
-    };
+  if (webApp?.sendData) {
+    return { webApp, isMock: false };
   }
 
-  return telegram.WebApp as TelegramWebApp;
+  const telegram = window.Telegram ?? (window.Telegram = {});
+  const mockWebApp: TelegramWebApp = {
+    sendData: (data: string) => {
+      console.log('Telegram.WebApp.sendData mock', data);
+    },
+  };
+
+  telegram.WebApp = mockWebApp;
+
+  return { webApp: mockWebApp, isMock: true };
 }
 
 export function buildTelegramReport(expenses: Expense[], settings: Settings): string {
@@ -113,6 +119,14 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
 export function sendTelegramReport(expenses: Expense[], settings: Settings): string {
   const report = buildTelegramReport(expenses, settings);
   const payload = buildTelegramReportPayload(expenses, settings);
-  getTelegramWebApp().sendData?.(JSON.stringify(payload));
+  const { webApp, isMock } = getTelegramWebApp();
+
+  console.log('Sending Telegram report payload', payload);
+  webApp.sendData(JSON.stringify(payload));
+
+  if (!isMock) {
+    webApp.close?.();
+  }
+
   return report;
 }
