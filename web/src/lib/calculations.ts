@@ -45,6 +45,81 @@ export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number
   };
 }
 
+export function getMonthWeeklyTotals(expenses: Expense[], date = new Date()): number[] {
+  const totals = [0, 0, 0, 0, 0];
+
+  getMonthExpenses(expenses, date).forEach((expense) => {
+    const expenseDate = new Date(`${expense.date}T00:00:00`);
+    const weekIndex = Math.min(4, Math.floor((expenseDate.getDate() - 1) / 7));
+
+    totals[weekIndex] += expense.amount;
+  });
+
+  return totals;
+}
+
+export type MonthWeeklyBudgetStat = {
+  weekIndex: number;
+  total: number;
+  startDay: number;
+  endDay: number;
+  daysCount: number;
+  target: number;
+  fillPercent: number;
+  isOverTarget: boolean;
+};
+
+export function getMonthWeeklyBudgetStats(
+  expenses: Expense[],
+  monthlyBudget: number,
+  date = new Date(),
+): MonthWeeklyBudgetStat[] {
+  const totals = getMonthWeeklyTotals(expenses, date);
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const dailyMonthlyTarget = monthlyBudget > 0 ? monthlyBudget / daysInMonth : 0;
+  const maxWeeklyTotal = Math.max(...totals, 1);
+
+  return totals.map((total, index) => {
+    const startDay = index * 7 + 1;
+    const endDay = Math.min(startDay + 6, daysInMonth);
+    const daysCount = Math.max(0, endDay - startDay + 1);
+    const target = monthlyBudget > 0 ? dailyMonthlyTarget * daysCount : maxWeeklyTotal;
+    const rawFillPercent = target > 0 ? (total / target) * 100 : 0;
+
+    return {
+      weekIndex: index + 1,
+      total,
+      startDay,
+      endDay,
+      daysCount,
+      target,
+      fillPercent: Math.min(rawFillPercent, 100),
+      isOverTarget: monthlyBudget > 0 && target > 0 && total > target,
+    };
+  });
+}
+
+export function getMonthProgressPercent(date = new Date()): number {
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+
+  return (date.getDate() / daysInMonth) * 100;
+}
+
+export function getBudgetUsagePercent(monthTotal: number, monthlyBudget: number): number {
+  if (monthlyBudget <= 0) {
+    return 0;
+  }
+
+  return (monthTotal / monthlyBudget) * 100;
+}
+
+export function getMonthBalanceStatus(
+  budgetPercent: number,
+  monthPercent: number,
+): 'within-month' | 'ahead-of-month' {
+  return budgetPercent <= monthPercent + 5 ? 'within-month' : 'ahead-of-month';
+}
+
 export function getCategoryTotals(expenses: Expense[]): Array<{ category: ExpenseCategory; total: number }> {
   const totals = new Map<ExpenseCategory, number>();
 

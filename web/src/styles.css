@@ -358,12 +358,199 @@ h2 {
   justify-content: space-between;
 }
 
+.summary-grid > .card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 90ms ease;
+}
+
+.summary-grid > .card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.summary-grid > .card:not(.month-balance-card) {
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.summary-grid > .card:active {
+  transform: scale(0.985);
+}
+
 .grid-two strong {
   margin-top: 12px;
   font-size: 21px;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: 0;
+}
+
+.summary-grid > .card:not(.month-balance-card) strong {
+  margin-top: 0;
+}
+
+.summary-card--month {
+  border-color: var(--line-soft);
+  background: linear-gradient(180deg, rgba(28, 34, 43, 0.72), rgba(21, 26, 32, 0.98)), var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.summary-card--month-over strong {
+  color: var(--danger-strong);
+  text-shadow: 0 0 8px rgba(255, 46, 138, 0.16);
+}
+
+.month-balance-card {
+  grid-column: 1 / -1;
+  gap: 18px;
+  min-height: 0;
+  border-color: rgba(215, 255, 23, 0.22);
+  background:
+    linear-gradient(135deg, rgba(20, 58, 62, 0.34), rgba(19, 40, 57, 0.3) 44%, rgba(21, 26, 32, 0.98)),
+    var(--surface);
+}
+
+.month-balance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.month-balance-card--over {
+  border-color: var(--danger-line);
+  background:
+    linear-gradient(135deg, rgba(61, 21, 44, 0.42), rgba(19, 40, 57, 0.24) 44%, rgba(21, 26, 32, 0.98)),
+    var(--surface);
+}
+
+.month-dynamics-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.month-dynamics-main > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.month-dynamics-main strong {
+  margin: 0;
+  color: var(--accent);
+  font-size: clamp(44px, 13vw, 58px);
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.month-balance-card--over .month-dynamics-main strong {
+  color: var(--danger-strong);
+}
+
+.month-dynamics-main span,
+.month-dynamics-main p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.month-dynamics-main p {
+  max-width: 44%;
+  color: var(--text);
+  font-weight: 650;
+  text-align: right;
+}
+
+.month-balance-card--over .month-dynamics-main p {
+  color: var(--danger-strong);
+}
+
+.month-balance-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(42, 49, 59, 0.78);
+}
+
+.month-balance-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(89, 214, 185, 0.88), var(--accent));
+  box-shadow: 0 0 10px rgba(215, 255, 23, 0.18);
+}
+
+.month-balance-card--over .month-balance-track span,
+.month-weekly-bar--over .month-weekly-bar__track span {
+  background: linear-gradient(180deg, var(--danger-strong), var(--danger));
+  box-shadow: 0 0 10px rgba(255, 46, 138, 0.16);
+}
+
+.month-weekly-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid rgba(42, 49, 59, 0.64);
+  padding-top: 14px;
+}
+
+.month-weekly-chart__title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.month-weekly-bars {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  min-height: 112px;
+}
+
+.month-weekly-bar {
+  display: grid;
+  grid-template-rows: 18px 74px 16px;
+  gap: 6px;
+  min-width: 0;
+  align-items: end;
+  justify-items: center;
+}
+
+.month-weekly-bar__amount,
+.month-weekly-bar__label {
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.month-weekly-bar__track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 34px;
+  height: 74px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(42, 49, 59, 0.58);
+}
+
+.month-weekly-bar__track span {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, var(--accent), rgba(89, 214, 185, 0.88));
+  box-shadow: 0 0 12px rgba(215, 255, 23, 0.16);
 }
 
 .section-title,

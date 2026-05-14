@@ -1,7 +1,9 @@
 import { ExpenseList } from '../components/ExpenseList';
 import {
+  getBudgetUsagePercent,
   getCategoryTotals,
   getLargestCategory,
+  getMonthWeeklyBudgetStats,
   getMonthlyBudgetStats,
   getTodayExpenses,
   getWeekExpenses,
@@ -38,13 +40,40 @@ function formatDaysLeft(days: number): string {
   return `${days} дней`;
 }
 
+function formatProgressPercent(percent: number): string {
+  return `${Math.round(percent)}%`;
+}
+
+function getProgressWidthPercent(percent: number): number {
+  return Math.min(100, Math.max(0, percent));
+}
+
+function formatCompactMoney(amount: number): string {
+  if (amount <= 0) {
+    return '0';
+  }
+
+  if (amount >= 1000) {
+    return `${Math.round(amount / 1000)}к`;
+  }
+
+  return Math.round(amount).toString();
+}
+
 export function HomeScreen({ expenses, settings, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const monthlyStats = getMonthlyBudgetStats(expenses, settings.monthlyBudget);
   const hasMonthlyBudget = settings.monthlyBudget > 0;
-  const isMonthOverBudget = monthlyStats.monthTotal > settings.monthlyBudget;
+  const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > settings.monthlyBudget;
+  const budgetPercent = getBudgetUsagePercent(monthlyStats.monthTotal, settings.monthlyBudget);
+  const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, settings.monthlyBudget);
+  const monthlyDynamicsCaption = hasMonthlyBudget
+    ? isMonthOverBudget
+      ? `Бюджет превышен на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
+      : `${formatMoney(monthlyStats.monthTotal, settings.currency)} из ${formatMoney(settings.monthlyBudget, settings.currency)}`
+    : 'Месячный бюджет не задан';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortByCreatedAt(expenses).slice(0, 4);
@@ -113,13 +142,41 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
           <span className="muted">Дневной лимит</span>
           <strong>{formatMoney(settings.dailyLimit, settings.currency)}</strong>
         </section>
-        <section className="card">
-          <span className="muted">За неделю</span>
-          <strong>{formatMoney(weekTotal, settings.currency)}</strong>
-        </section>
-        <section className="card">
+        <section className={`card summary-card--month ${isMonthOverBudget ? 'summary-card--month-over' : ''}`}>
           <span className="muted">За месяц</span>
           <strong>{formatMoney(monthlyStats.monthTotal, settings.currency)}</strong>
+        </section>
+        <section className={`card month-balance-card ${isMonthOverBudget ? 'month-balance-card--over' : ''}`}>
+            <div className="month-balance-head">
+              <span className="muted">Динамика месяца</span>
+            </div>
+            <div className="month-dynamics-main">
+              <div>
+                <strong>{formatProgressPercent(budgetPercent)}</strong>
+                <span>бюджета использовано</span>
+              </div>
+              <p>{monthlyDynamicsCaption}</p>
+            </div>
+            <div className="month-balance-track" aria-hidden="true">
+              <span style={{ width: `${getProgressWidthPercent(budgetPercent)}%` }} />
+            </div>
+            <div className="month-weekly-chart">
+              <div className="month-weekly-chart__title">Расходы по неделям</div>
+              <div className="month-weekly-bars">
+                {monthWeeklyStats.map((week) => (
+                  <div
+                    className={`month-weekly-bar ${week.isOverTarget ? 'month-weekly-bar--over' : ''}`}
+                    key={week.weekIndex}
+                  >
+                    <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
+                    <div className="month-weekly-bar__track">
+                      <span style={{ height: week.total > 0 ? `${Math.max(8, week.fillPercent)}%` : '2px' }} />
+                    </div>
+                    <span className="month-weekly-bar__label">{week.weekIndex}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
         </section>
       </div>
 
