@@ -6,6 +6,8 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { DEFAULT_SETTINGS } from './lib/constants';
+import { formatDate } from './lib/date';
+import { formatMoney } from './lib/format';
 import { clearAllData, loadExpenses, loadSettings, saveExpenses, saveSettings } from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
 import type { Expense, HistoryFilter, Screen, Settings } from './types';
@@ -18,6 +20,9 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editReturnScreen, setEditReturnScreen] = useState<Screen>('history');
 
   useEffect(() => {
     const leaveTimer = window.setTimeout(() => {
@@ -45,8 +50,37 @@ export default function App() {
     setExpenses((current) => [expense, ...current]);
   }
 
-  function handleDeleteExpense(id: string) {
+  function handleUpdateExpense(expense: Expense) {
+    setExpenses((current) => current.map((item) => (item.id === expense.id ? expense : item)));
+    setEditingExpense(null);
+  }
+
+  function handleRequestDeleteExpense(id: string) {
+    setExpenseToDelete(expenses.find((expense) => expense.id === id) ?? null);
+  }
+
+  function handleConfirmDeleteExpense() {
+    if (!expenseToDelete) {
+      return;
+    }
+
+    const id = expenseToDelete.id;
     setExpenses((current) => current.filter((expense) => expense.id !== id));
+    setExpenseToDelete(null);
+  }
+
+  function handleEditExpense(expense: Expense) {
+    setEditingExpense(expense);
+    setEditReturnScreen('history');
+    setScreen('add');
+  }
+
+  function handleNavigate(nextScreen: Screen) {
+    if (nextScreen !== 'add') {
+      setEditingExpense(null);
+    }
+
+    setScreen(nextScreen);
   }
 
   function handleClearData() {
@@ -70,13 +104,21 @@ export default function App() {
           <HomeScreen
             expenses={expenses}
             settings={settings}
-            onNavigate={setScreen}
+            onNavigate={handleNavigate}
             onSendReport={handleSendReport}
             reportStatus={reportStatus}
           />
         ) : null}
 
-        {screen === 'add' ? <AddExpenseScreen onAddExpense={handleAddExpense} onNavigate={setScreen} /> : null}
+        {screen === 'add' ? (
+          <AddExpenseScreen
+            editExpense={editingExpense}
+            onAddExpense={handleAddExpense}
+            onUpdateExpense={handleUpdateExpense}
+            onNavigate={handleNavigate}
+            returnScreen={editReturnScreen}
+          />
+        ) : null}
 
         {screen === 'history' ? (
           <HistoryScreen
@@ -84,7 +126,8 @@ export default function App() {
             settings={settings}
             filter={historyFilter}
             onFilterChange={setHistoryFilter}
-            onDeleteExpense={handleDeleteExpense}
+            onDeleteExpense={handleRequestDeleteExpense}
+            onEditExpense={handleEditExpense}
           />
         ) : null}
 
@@ -92,8 +135,48 @@ export default function App() {
           <SettingsScreen settings={settings} onSaveSettings={setSettings} onClearData={handleClearData} />
         ) : null}
 
-        <BottomNav currentScreen={screen} onNavigate={setScreen} />
+        <BottomNav currentScreen={screen} onNavigate={handleNavigate} />
       </div>
+
+      {expenseToDelete ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-expense-title">
+            <div className="confirm-modal__head">
+              <p className="subtitle">Подтверждение</p>
+              <h2 id="delete-expense-title">Удалить расход?</h2>
+            </div>
+            <div className="confirm-modal__expense">
+              <div>
+                <span>Категория</span>
+                <strong>{expenseToDelete.category}</strong>
+              </div>
+              <div>
+                <span>Сумма</span>
+                <strong>{formatMoney(expenseToDelete.amount, settings.currency)}</strong>
+              </div>
+              {expenseToDelete.note ? (
+                <div>
+                  <span>Комментарий</span>
+                  <strong>{expenseToDelete.note}</strong>
+                </div>
+              ) : null}
+              <div>
+                <span>Дата</span>
+                <strong>{formatDate(expenseToDelete.date)}</strong>
+              </div>
+            </div>
+            <p className="confirm-modal__warning">Это действие нельзя отменить.</p>
+            <div className="confirm-modal__actions">
+              <button className="secondary-button" onClick={() => setExpenseToDelete(null)} type="button">
+                Отмена
+              </button>
+              <button className="danger-button" onClick={handleConfirmDeleteExpense} type="button">
+                Удалить
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }

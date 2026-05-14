@@ -7,7 +7,7 @@ import {
   getMonthlyBudgetStats,
   getTodayExpenses,
   getWeekExpenses,
-  sortByCreatedAt,
+  sortExpensesByDate,
   sumExpenses,
 } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
@@ -76,7 +76,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
     : 'Месячный бюджет не задан';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
-  const recentExpenses = sortByCreatedAt(expenses).slice(0, 4);
+  const recentExpenses = sortExpensesByDate(expenses).slice(0, 4);
   const limitDiff = settings.dailyLimit - todayTotal;
   const hasDailyLimit = settings.dailyLimit > 0;
   const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';

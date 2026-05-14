@@ -137,3 +137,15 @@ export function getLargestCategory(expenses: Expense[]): { category: ExpenseCate
 export function sortByCreatedAt(expenses: Expense[]): Expense[] {
   return [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+export function sortExpensesByDate(expenses: Expense[]): Expense[] {
+  return [...expenses].sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}

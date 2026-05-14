@@ -7,9 +7,10 @@ type ExpenseListProps = {
   currency: string;
   emptyText: string;
   onDelete?: (id: string) => void;
+  onEdit?: (expense: Expense) => void;
 };
 
-export function ExpenseList({ expenses, currency, emptyText, onDelete }: ExpenseListProps) {
+export function ExpenseList({ expenses, currency, emptyText, onDelete, onEdit }: ExpenseListProps) {
   if (expenses.length === 0) {
     return <p className="empty-state">{emptyText}</p>;
   }
@@ -28,10 +29,19 @@ export function ExpenseList({ expenses, currency, emptyText, onDelete }: Expense
               <span>{formatDate(expense.date)}</span>
             </div>
           </div>
-          {onDelete ? (
-            <button className="delete-button" onClick={() => onDelete(expense.id)} type="button">
-              Удалить
-            </button>
+          {onDelete || onEdit ? (
+            <div className="expense-actions">
+              {onEdit ? (
+                <button className="expense-action-button" onClick={() => onEdit(expense)} type="button">
+                  Редактировать
+                </button>
+              ) : null}
+              {onDelete ? (
+                <button className="delete-button" onClick={() => onDelete(expense.id)} type="button">
+                  Удалить
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </article>
       ))}

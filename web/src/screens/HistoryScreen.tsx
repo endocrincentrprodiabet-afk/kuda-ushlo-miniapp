@@ -1,5 +1,5 @@
 import { ExpenseList } from '../components/ExpenseList';
-import { getTodayExpenses, getWeekExpenses, sortByCreatedAt } from '../lib/calculations';
+import { getTodayExpenses, getWeekExpenses, sortExpensesByDate } from '../lib/calculations';
 import { formatDate } from '../lib/date';
 import type { Expense, HistoryFilter, Settings } from '../types';
 
@@ -9,6 +9,7 @@ type HistoryScreenProps = {
   filter: HistoryFilter;
   onFilterChange: (filter: HistoryFilter) => void;
   onDeleteExpense: (id: string) => void;
+  onEditExpense: (expense: Expense) => void;
 };
 
 const filters: Array<{ value: HistoryFilter; label: string }> = [
@@ -17,10 +18,17 @@ const filters: Array<{ value: HistoryFilter; label: string }> = [
   { value: 'all', label: 'Все' },
 ];
 
-export function HistoryScreen({ expenses, settings, filter, onFilterChange, onDeleteExpense }: HistoryScreenProps) {
+export function HistoryScreen({
+  expenses,
+  settings,
+  filter,
+  onFilterChange,
+  onDeleteExpense,
+  onEditExpense,
+}: HistoryScreenProps) {
   const filteredExpenses =
     filter === 'today' ? getTodayExpenses(expenses) : filter === 'week' ? getWeekExpenses(expenses) : expenses;
-  const sortedExpenses = sortByCreatedAt(filteredExpenses);
+  const sortedExpenses = sortExpensesByDate(filteredExpenses);
   const groupedExpenses = sortedExpenses.reduce<Array<{ date: string; expenses: Expense[] }>>((groups, expense) => {
     const existingGroup = groups.find((group) => group.date === expense.date);
 
@@ -65,6 +73,7 @@ export function HistoryScreen({ expenses, settings, filter, onFilterChange, onDe
                   currency={settings.currency}
                   emptyText="В выбранном периоде расходов нет"
                   onDelete={onDeleteExpense}
+                  onEdit={onEditExpense}
                 />
               </section>
             ))}
@@ -75,6 +84,7 @@ export function HistoryScreen({ expenses, settings, filter, onFilterChange, onDe
             currency={settings.currency}
             emptyText="В выбранном периоде расходов нет"
             onDelete={onDeleteExpense}
+            onEdit={onEditExpense}
           />
         )}
       </section>
