@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
+import { SplashScreen } from './components/SplashScreen';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -10,11 +11,27 @@ import { sendTelegramReport } from './lib/telegram';
 import type { Expense, HistoryFilter, Screen, Settings } from './types';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [isSplashLeaving, setIsSplashLeaving] = useState(false);
   const [screen, setScreen] = useState<Screen>('home');
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
+
+  useEffect(() => {
+    const leaveTimer = window.setTimeout(() => {
+      setIsSplashLeaving(true);
+    }, 1520);
+    const hideTimer = window.setTimeout(() => {
+      setShowSplash(false);
+    }, 1800);
+
+    return () => {
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, []);
 
   useEffect(() => {
     saveExpenses(expenses);
@@ -45,34 +62,38 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      {screen === 'home' ? (
-        <HomeScreen
-          expenses={expenses}
-          settings={settings}
-          onNavigate={setScreen}
-          onSendReport={handleSendReport}
-          reportStatus={reportStatus}
-        />
-      ) : null}
+    <>
+      {showSplash ? <SplashScreen isLeaving={isSplashLeaving} /> : null}
 
-      {screen === 'add' ? <AddExpenseScreen onAddExpense={handleAddExpense} onNavigate={setScreen} /> : null}
+      <div className={`app-shell${showSplash ? ' app-shell--loading' : ' app-shell--ready'}`}>
+        {screen === 'home' ? (
+          <HomeScreen
+            expenses={expenses}
+            settings={settings}
+            onNavigate={setScreen}
+            onSendReport={handleSendReport}
+            reportStatus={reportStatus}
+          />
+        ) : null}
 
-      {screen === 'history' ? (
-        <HistoryScreen
-          expenses={expenses}
-          settings={settings}
-          filter={historyFilter}
-          onFilterChange={setHistoryFilter}
-          onDeleteExpense={handleDeleteExpense}
-        />
-      ) : null}
+        {screen === 'add' ? <AddExpenseScreen onAddExpense={handleAddExpense} onNavigate={setScreen} /> : null}
 
-      {screen === 'settings' ? (
-        <SettingsScreen settings={settings} onSaveSettings={setSettings} onClearData={handleClearData} />
-      ) : null}
+        {screen === 'history' ? (
+          <HistoryScreen
+            expenses={expenses}
+            settings={settings}
+            filter={historyFilter}
+            onFilterChange={setHistoryFilter}
+            onDeleteExpense={handleDeleteExpense}
+          />
+        ) : null}
 
-      <BottomNav currentScreen={screen} onNavigate={setScreen} />
-    </div>
+        {screen === 'settings' ? (
+          <SettingsScreen settings={settings} onSaveSettings={setSettings} onClearData={handleClearData} />
+        ) : null}
+
+        <BottomNav currentScreen={screen} onNavigate={setScreen} />
+      </div>
+    </>
   );
 }
