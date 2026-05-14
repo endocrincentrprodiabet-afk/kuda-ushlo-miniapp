@@ -154,6 +154,7 @@ button {
 
 h1,
 h2,
+h3,
 p {
   margin: 0;
 }
@@ -694,19 +695,60 @@ h2 {
 .history-groups {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.history-week-groups,
+.history-day-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.history-week-groups {
+  gap: 24px;
+}
+
+.history-week-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(215, 255, 23, 0.18);
+}
+
+.history-week-group:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.history-day-groups {
   gap: 18px;
 }
 
 .history-date-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+}
+
+.history-week-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.history-week-title--compact {
+  margin-bottom: -2px;
+  color: var(--accent);
+  font-size: 13px;
+  text-transform: uppercase;
 }
 
 .history-date-title {
-  color: var(--muted);
+  color: var(--muted-soft);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.35;
   text-transform: uppercase;
 }

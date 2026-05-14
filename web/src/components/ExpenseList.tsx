@@ -6,11 +6,12 @@ type ExpenseListProps = {
   expenses: Expense[];
   currency: string;
   emptyText: string;
+  showDate?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (expense: Expense) => void;
 };
 
-export function ExpenseList({ expenses, currency, emptyText, onDelete, onEdit }: ExpenseListProps) {
+export function ExpenseList({ expenses, currency, emptyText, showDate = true, onDelete, onEdit }: ExpenseListProps) {
   if (expenses.length === 0) {
     return <p className="empty-state">{emptyText}</p>;
   }
@@ -26,7 +27,7 @@ export function ExpenseList({ expenses, currency, emptyText, onDelete, onEdit }:
             </div>
             <div className="expense-meta">
               <span>{expense.note || 'Без комментария'}</span>
-              <span>{formatDate(expense.date)}</span>
+              {showDate ? <span>{formatDate(expense.date)}</span> : null}
             </div>
           </div>
           {onDelete || onEdit ? (

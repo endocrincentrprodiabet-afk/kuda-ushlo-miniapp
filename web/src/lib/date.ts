@@ -18,9 +18,70 @@ export function isWithinLastSevenDays(value: string): boolean {
   return date >= start && date < end;
 }
 
+export function getWeekStart(date: Date): Date {
+  const day = date.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysSinceMonday);
+}
+
+export function getWeekEnd(date: Date): Date {
+  const weekStart = getWeekStart(date);
+
+  return new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+}
+
+export function isWithinCurrentWeek(value: string): boolean {
+  const date = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  const start = getWeekStart(today);
+  const end = getWeekEnd(today);
+
+  return date >= start && date <= end;
+}
+
 export function formatDate(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: 'long',
   }).format(new Date(`${value}T00:00:00`));
+}
+
+export function formatDayLabel(value: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatWeekRangePart(date: Date, includeMonth: boolean): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: includeMonth ? 'long' : undefined,
+  }).format(date);
+}
+
+export function getWeekRangeLabel(weekStart: Date): string {
+  const todayWeekStart = getWeekStart(new Date());
+  const previousWeekStart = new Date(
+    todayWeekStart.getFullYear(),
+    todayWeekStart.getMonth(),
+    todayWeekStart.getDate() - 7,
+  );
+  const weekEnd = getWeekEnd(weekStart);
+  const weekStartValue = toDateInputValue(weekStart);
+
+  if (weekStartValue === toDateInputValue(todayWeekStart)) {
+    return 'Эта неделя';
+  }
+
+  if (weekStartValue === toDateInputValue(previousWeekStart)) {
+    return 'Прошлая неделя';
+  }
+
+  if (weekStart.getMonth() === weekEnd.getMonth()) {
+    return `${formatWeekRangePart(weekStart, false)}–${formatWeekRangePart(weekEnd, true)}`;
+  }
+
+  return `${formatWeekRangePart(weekStart, true)} – ${formatWeekRangePart(weekEnd, true)}`;
 }
