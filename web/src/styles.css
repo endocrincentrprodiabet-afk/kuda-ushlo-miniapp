@@ -736,13 +736,12 @@ h2 {
   font-size: 16px;
   font-weight: 750;
   line-height: 1.25;
+  letter-spacing: 0;
+  margin: 0;
 }
 
-.history-week-title--compact {
-  margin-bottom: -2px;
+.history-week-title--current {
   color: var(--accent);
-  font-size: 13px;
-  text-transform: uppercase;
 }
 
 .history-date-title {
@@ -750,7 +749,8 @@ h2 {
   font-size: 12px;
   font-weight: 650;
   line-height: 1.35;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  margin: 0;
 }
 
 .actions {

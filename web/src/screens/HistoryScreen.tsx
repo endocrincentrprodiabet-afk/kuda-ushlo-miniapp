@@ -82,6 +82,7 @@ export function HistoryScreen({
   const sortedExpenses = sortExpensesByDate(filteredExpenses);
   const dayGroups = groupExpensesByDay(sortedExpenses);
   const weekGroups = filter === 'all' ? groupExpensesByWeek(sortedExpenses) : [];
+  const currentWeekStart = toDateInputValue(getWeekStart(new Date()));
   const emptyText = 'Расходов пока нет';
 
   return (
@@ -111,7 +112,13 @@ export function HistoryScreen({
           <div className="history-week-groups">
             {weekGroups.map((week) => (
               <section className="history-week-group" key={week.weekStart}>
-                <h2 className="history-week-title">{week.title}</h2>
+                <h2
+                  className={`history-week-title ${
+                    week.weekStart === currentWeekStart ? 'history-week-title--current' : ''
+                  }`}
+                >
+                  {week.title}
+                </h2>
                 <div className="history-day-groups">
                   {week.days.map((day) => (
                     <section className="history-date-group" key={day.date}>
@@ -132,7 +139,9 @@ export function HistoryScreen({
           </div>
         ) : dayGroups.length ? (
           <div className="history-groups">
-            {filter === 'week' ? <h2 className="history-week-title history-week-title--compact">Эта неделя</h2> : null}
+            {filter === 'week' ? (
+              <h2 className="history-week-title history-week-title--current">Эта неделя</h2>
+            ) : null}
             {dayGroups.map((day) => {
               const showDayTitle = filter !== 'today';
 
