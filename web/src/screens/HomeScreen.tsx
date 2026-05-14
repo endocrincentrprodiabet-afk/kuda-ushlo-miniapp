@@ -1,5 +1,13 @@
 import { ExpenseList } from '../components/ExpenseList';
-import { getCategoryTotals, getLargestCategory, getTodayExpenses, getWeekExpenses, sortByCreatedAt, sumExpenses } from '../lib/calculations';
+import {
+  getCategoryTotals,
+  getLargestCategory,
+  getMonthlyBudgetStats,
+  getTodayExpenses,
+  getWeekExpenses,
+  sortByCreatedAt,
+  sumExpenses,
+} from '../lib/calculations';
 import { formatMoney } from '../lib/format';
 import type { Expense, Screen, Settings } from '../types';
 
@@ -11,10 +19,32 @@ type HomeScreenProps = {
   reportStatus: string;
 };
 
+function formatDaysLeft(days: number): string {
+  const lastTwoDigits = days % 100;
+  const lastDigit = days % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `${days} дней`;
+  }
+
+  if (lastDigit === 1) {
+    return `${days} день`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${days} дня`;
+  }
+
+  return `${days} дней`;
+}
+
 export function HomeScreen({ expenses, settings, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
+  const monthlyStats = getMonthlyBudgetStats(expenses, settings.monthlyBudget);
+  const hasMonthlyBudget = settings.monthlyBudget > 0;
+  const isMonthOverBudget = monthlyStats.monthTotal > settings.monthlyBudget;
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortByCreatedAt(expenses).slice(0, 4);
@@ -54,7 +84,31 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
         </section>
       ) : null}
 
-      <div className="grid-two">
+      {hasMonthlyBudget ? (
+        <section className={`month-budget-card ${isMonthOverBudget ? 'month-budget-card--over' : ''}`}>
+          <div className="month-budget-head">
+            <div>
+              <span>Месяц</span>
+              <h2>{isMonthOverBudget ? 'Перерасход месяца' : 'Запас месяца'}</h2>
+            </div>
+            <strong>
+              {formatMoney(
+                isMonthOverBudget ? monthlyStats.overBudget : Math.max(0, monthlyStats.balance),
+                settings.currency,
+              )}
+            </strong>
+          </div>
+          <p>{isMonthOverBudget ? 'Месячный лимит превышен' : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}</p>
+          {!isMonthOverBudget ? (
+            <div className="month-budget-metric">
+              <span>Комфортный темп</span>
+              <strong>{formatMoney(monthlyStats.comfortDailyPace, settings.currency)} / день</strong>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="grid-two summary-grid">
         <section className="card">
           <span className="muted">Дневной лимит</span>
           <strong>{formatMoney(settings.dailyLimit, settings.currency)}</strong>
@@ -62,6 +116,10 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
         <section className="card">
           <span className="muted">За неделю</span>
           <strong>{formatMoney(weekTotal, settings.currency)}</strong>
+        </section>
+        <section className="card">
+          <span className="muted">За месяц</span>
+          <strong>{formatMoney(monthlyStats.monthTotal, settings.currency)}</strong>
         </section>
       </div>
 

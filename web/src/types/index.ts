@@ -19,6 +19,7 @@ export type Expense = {
 
 export type Settings = {
   dailyLimit: number;
+  monthlyBudget: number;
   currency: 'RUB';
 };
 

@@ -9,13 +9,16 @@ type SettingsScreenProps = {
 
 export function SettingsScreen({ settings, onSaveSettings, onClearData }: SettingsScreenProps) {
   const [dailyLimit, setDailyLimit] = useState(String(settings.dailyLimit));
+  const [monthlyBudget, setMonthlyBudget] = useState(String(settings.monthlyBudget));
   const [saved, setSaved] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsedLimit = Math.max(0, Number(dailyLimit.replace(',', '.')) || 0);
-    onSaveSettings({ dailyLimit: parsedLimit, currency: 'RUB' });
+    const parsedMonthlyBudget = Math.max(0, Number(monthlyBudget.replace(',', '.')) || 0);
+    onSaveSettings({ dailyLimit: parsedLimit, monthlyBudget: parsedMonthlyBudget, currency: 'RUB' });
     setDailyLimit(String(parsedLimit));
+    setMonthlyBudget(String(parsedMonthlyBudget));
     setSaved(true);
   }
 
@@ -32,6 +35,17 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
         <label>
           <span>Дневной лимит</span>
           <input inputMode="decimal" min="0" onChange={(event) => setDailyLimit(event.target.value)} type="number" value={dailyLimit} />
+        </label>
+
+        <label>
+          <span>Месячный бюджет</span>
+          <input
+            inputMode="decimal"
+            min="0"
+            onChange={(event) => setMonthlyBudget(event.target.value)}
+            type="number"
+            value={monthlyBudget}
+          />
         </label>
 
         <div className="setting-row">
