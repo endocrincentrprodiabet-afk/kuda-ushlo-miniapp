@@ -4,6 +4,7 @@ import {
   getCategoryTotals,
   getCurrentWeekExpenses,
   getLargestCategory,
+  getMonthlySpendingLimit,
   getMonthWeeklyBudgetStats,
   getMonthlyBudgetStats,
   getTodayExpenses,
@@ -66,15 +67,20 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const currentWeekTotal = sumExpenses(getCurrentWeekExpenses(expenses));
-  const monthlyStats = getMonthlyBudgetStats(expenses, settings.monthlyBudget);
+  const monthlySpendingLimit = getMonthlySpendingLimit(settings.monthlyBudget, settings.savingsGoal);
+  const monthlyStats = getMonthlyBudgetStats(expenses, monthlySpendingLimit);
   const hasMonthlyBudget = settings.monthlyBudget > 0;
-  const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > settings.monthlyBudget;
-  const budgetPercent = getBudgetUsagePercent(monthlyStats.monthTotal, settings.monthlyBudget);
-  const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, settings.monthlyBudget);
+  const hasMonthlySpendingLimit = monthlySpendingLimit > 0;
+  const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > monthlySpendingLimit;
+  const budgetPercent = getBudgetUsagePercent(monthlyStats.monthTotal, monthlySpendingLimit);
+  const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, monthlySpendingLimit);
+  const normalizedSavingsGoal = Math.min(settings.savingsGoal, settings.monthlyBudget);
   const monthlyDynamicsCaption = hasMonthlyBudget
     ? isMonthOverBudget
       ? `Бюджет превышен на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
-      : `${formatMoney(monthlyStats.monthTotal, settings.currency)} из ${formatMoney(settings.monthlyBudget, settings.currency)}`
+      : hasMonthlySpendingLimit
+        ? `${formatMoney(monthlyStats.monthTotal, settings.currency)} из ${formatMoney(monthlySpendingLimit, settings.currency)}`
+        : 'Лимит на расходы равен 0 ₽'
     : 'Месячный бюджет не задан';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
@@ -129,7 +135,16 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
               )}
             </strong>
           </div>
-          <p>{isMonthOverBudget ? 'Месячный лимит превышен' : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}</p>
+          <div className="month-budget-details">
+            <p>
+              {isMonthOverBudget
+                ? `На расходы: ${formatMoney(monthlySpendingLimit, settings.currency)}`
+                : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}
+            </p>
+            {normalizedSavingsGoal > 0 ? (
+              <p>Отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p>
+            ) : null}
+          </div>
           {!isMonthOverBudget ? (
             <div className="month-budget-metric">
               <span>Комфортный темп</span>

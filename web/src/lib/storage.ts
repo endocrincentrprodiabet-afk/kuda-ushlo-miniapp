@@ -22,15 +22,32 @@ export function saveExpenses(expenses: Expense[]): void {
 }
 
 export function loadSettings(): Settings {
-  return {
+  const settings = {
     ...DEFAULT_SETTINGS,
     ...readJson<Partial<Settings>>(SETTINGS_KEY, DEFAULT_SETTINGS),
-    currency: 'RUB',
+    currency: 'RUB' as const,
+  };
+
+  return {
+    ...settings,
+    monthlyBudget: Math.max(0, settings.monthlyBudget || 0),
+    savingsGoal: Math.min(Math.max(0, settings.savingsGoal || 0), Math.max(0, settings.monthlyBudget || 0)),
   };
 }
 
 export function saveSettings(settings: Settings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  const monthlyBudget = Math.max(0, settings.monthlyBudget || 0);
+  const savingsGoal = Math.min(Math.max(0, settings.savingsGoal || 0), monthlyBudget);
+
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      ...settings,
+      monthlyBudget,
+      savingsGoal: monthlyBudget > 0 ? savingsGoal : 0,
+      currency: 'RUB' as const,
+    }),
+  );
 }
 
 export function clearAllData(): void {

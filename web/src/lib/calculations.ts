@@ -34,6 +34,10 @@ export function getDaysLeftInMonth(date = new Date()): number {
   return Math.max(1, lastDayOfMonth - date.getDate() + 1);
 }
 
+export function getMonthlySpendingLimit(monthlyBudget: number, savingsGoal: number): number {
+  return Math.max(monthlyBudget - Math.min(savingsGoal, monthlyBudget), 0);
+}
+
 export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number, date = new Date()) {
   const monthTotal = sumExpenses(getMonthExpenses(expenses, date));
   const balance = monthlyBudget - monthTotal;
