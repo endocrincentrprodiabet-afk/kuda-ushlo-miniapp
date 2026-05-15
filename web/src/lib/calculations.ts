@@ -160,6 +160,7 @@ export function getMonthWeeklyTotals(expenses: Expense[], date = new Date()): nu
 }
 
 export type MonthWeeklyBudgetStat = {
+  index: number;
   weekIndex: number;
   total: number;
   startDate: string;
@@ -171,6 +172,8 @@ export type MonthWeeklyBudgetStat = {
   fillPercent: number;
   cappedFillPercent: number;
   isOverTarget: boolean;
+  expenses: Expense[];
+  categoryTotals: Array<{ category: ExpenseCategory; total: number }>;
 };
 
 export function getMonthWeeklyBudgetStats(
@@ -180,6 +183,7 @@ export function getMonthWeeklyBudgetStats(
 ): MonthWeeklyBudgetStat[] {
   const groups = getMonthWeekGroups(date);
   const totals = groups.map(() => 0);
+  const expensesByGroup = groups.map((): Expense[] => []);
 
   getMonthExpenses(expenses, date).forEach((expense) => {
     const expenseDate = new Date(`${expense.date}T00:00:00`);
@@ -187,6 +191,7 @@ export function getMonthWeeklyBudgetStats(
 
     if (weekIndex >= 0) {
       totals[weekIndex] += expense.amount;
+      expensesByGroup[weekIndex].push(expense);
     }
   });
 
@@ -201,6 +206,7 @@ export function getMonthWeeklyBudgetStats(
     const rawFillPercent = target > 0 ? (total / target) * 100 : 0;
 
     return {
+      index: index + 1,
       weekIndex: index + 1,
       total,
       startDate: toDateInputValue(group.startDate),
@@ -212,6 +218,8 @@ export function getMonthWeeklyBudgetStats(
       fillPercent: rawFillPercent,
       cappedFillPercent: Math.min(rawFillPercent, 100),
       isOverTarget: monthlyBudget > 0 && target > 0 && total > target,
+      expenses: sortExpensesByDate(expensesByGroup[index]),
+      categoryTotals: getCategoryTotals(expensesByGroup[index]),
     };
   });
 }

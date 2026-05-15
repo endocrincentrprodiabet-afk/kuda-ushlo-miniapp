@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { ExpenseList } from '../components/ExpenseList';
+import { WeekDetailsSheet } from '../components/WeekDetailsSheet';
 import {
   getBudgetUsagePercent,
   getAutoDailyTarget,
@@ -64,6 +66,7 @@ function formatCompactMoney(amount: number): string {
 }
 
 export function HomeScreen({ expenses, settings, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
@@ -76,6 +79,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > monthlySpendingLimit;
   const budgetPercent = getBudgetUsagePercent(monthlyStats.monthTotal, monthlySpendingLimit);
   const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, monthlySpendingLimit);
+  const selectedWeek = monthWeeklyStats.find((week) => week.index === selectedWeekIndex) ?? null;
   const normalizedSavingsGoal = Math.min(settings.savingsGoal, settings.monthlyBudget);
   const monthlyDynamicsCaption = hasMonthlyBudget
     ? isMonthOverBudget
@@ -184,16 +188,19 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
               <div className="month-weekly-chart__title">Расходы по неделям</div>
               <div className="month-weekly-bars">
                 {monthWeeklyStats.map((week) => (
-                  <div
+                  <button
+                    aria-label={`Открыть детали недели ${week.index}`}
                     className={`month-weekly-bar ${week.isOverTarget ? 'month-weekly-bar--over' : ''}`}
                     key={week.weekIndex}
+                    onClick={() => setSelectedWeekIndex(week.index)}
+                    type="button"
                   >
                     <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
                     <div className="month-weekly-bar__track">
                       <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
                     </div>
                     <span className="month-weekly-bar__label">{week.weekIndex}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -243,6 +250,16 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
         </button>
         {reportStatus ? <p className="status-message">{reportStatus}</p> : null}
       </div>
+
+      {selectedWeek ? (
+        <WeekDetailsSheet
+          week={selectedWeek}
+          monthlySpendingLimit={monthlySpendingLimit}
+          monthTotal={monthlyStats.monthTotal}
+          settings={settings}
+          onClose={() => setSelectedWeekIndex(null)}
+        />
+      ) : null}
     </main>
   );
 }
