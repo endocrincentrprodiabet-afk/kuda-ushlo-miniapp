@@ -1,5 +1,5 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
-import type { Expense, ExpenseCategory } from '../types';
+import type { Expense, ExpenseCategory, Settings } from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
@@ -34,8 +34,46 @@ export function getDaysLeftInMonth(date = new Date()): number {
   return Math.max(1, lastDayOfMonth - date.getDate() + 1);
 }
 
-export function getMonthlySpendingLimit(monthlyBudget: number, savingsGoal: number): number {
-  return Math.max(monthlyBudget - Math.min(savingsGoal, monthlyBudget), 0);
+export function getDaysLeftInMonthIncludingToday(date = new Date()): number {
+  return getDaysLeftInMonth(date);
+}
+
+export function getMonthlySpendingLimit(settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>): number {
+  const monthlyBudget = Math.max(settings.monthlyBudget, 0);
+  const savingsGoal = Math.min(Math.max(settings.savingsGoal, 0), monthlyBudget);
+
+  return Math.max(monthlyBudget - savingsGoal, 0);
+}
+
+export function getSpentBeforeToday(expenses: Expense[], date = new Date()): number {
+  const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+
+  return sumExpenses(
+    expenses.filter((expense) => {
+      const expenseDate = new Date(`${expense.date}T00:00:00`);
+
+      return expenseDate >= monthStart && expenseDate < todayStart;
+    }),
+  );
+}
+
+export function getAutoDailyTarget(
+  expenses: Expense[],
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>,
+  date = new Date(),
+): number {
+  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
+
+  if (monthlySpendingLimit <= 0) {
+    return 0;
+  }
+
+  const spentBeforeToday = getSpentBeforeToday(expenses, date);
+  const remainingBeforeToday = Math.max(monthlySpendingLimit - spentBeforeToday, 0);
+  const daysLeftIncludingToday = getDaysLeftInMonthIncludingToday(date);
+
+  return remainingBeforeToday / daysLeftIncludingToday;
 }
 
 export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number, date = new Date()) {

@@ -13,7 +13,7 @@ export const CATEGORIES: ExpenseCategory[] = [
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
-  dailyLimit: 3000,
+  dailyLimit: 0,
   monthlyBudget: 0,
   savingsGoal: 0,
   currency: 'RUB',

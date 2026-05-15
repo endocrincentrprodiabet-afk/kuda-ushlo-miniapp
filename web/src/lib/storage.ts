@@ -30,6 +30,7 @@ export function loadSettings(): Settings {
 
   return {
     ...settings,
+    dailyLimit: 0,
     monthlyBudget: Math.max(0, settings.monthlyBudget || 0),
     savingsGoal: Math.min(Math.max(0, settings.savingsGoal || 0), Math.max(0, settings.monthlyBudget || 0)),
   };
@@ -43,6 +44,7 @@ export function saveSettings(settings: Settings): void {
     SETTINGS_KEY,
     JSON.stringify({
       ...settings,
+      dailyLimit: 0,
       monthlyBudget,
       savingsGoal: monthlyBudget > 0 ? savingsGoal : 0,
       currency: 'RUB' as const,

@@ -1135,12 +1135,31 @@ input::placeholder {
   min-height: 28px;
 }
 
+.settings-plan-metrics {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(245, 247, 250, 0.07);
+  padding-top: 14px;
+}
+
 .monthly-spending-limit strong {
   color: rgba(245, 247, 250, 0.88);
   font-size: 15px;
   font-weight: 650;
   overflow-wrap: anywhere;
   text-align: right;
+}
+
+.monthly-spending-limit--secondary strong {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.settings-plan-note {
+  color: var(--muted-soft);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .savings-slider-wrap {

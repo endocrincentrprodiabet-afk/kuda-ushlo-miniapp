@@ -1,4 +1,11 @@
-import { getCategoryTotals, getTodayExpenses, getWeekExpenses, sortByCreatedAt, sumExpenses } from './calculations';
+import {
+  getAutoDailyTarget,
+  getCategoryTotals,
+  getTodayExpenses,
+  getWeekExpenses,
+  sortByCreatedAt,
+  sumExpenses,
+} from './calculations';
 import { formatMoney } from './format';
 import type { Expense, Settings } from '../types';
 
@@ -22,6 +29,7 @@ type TelegramReportPayload = {
   todayTotal: number;
   weekTotal: number;
   dailyLimit: number;
+  dailyTarget: number;
   limitDiff: number;
   isLimitExceeded: boolean;
   categories: Array<{
@@ -55,11 +63,12 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings): st
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
-  const limitDiff = settings.dailyLimit - todayTotal;
+  const dailyTarget = getAutoDailyTarget(expenses, settings);
+  const limitDiff = dailyTarget - todayTotal;
   const limitLine =
     limitDiff >= 0
-      ? `Остаток лимита: ${formatMoney(limitDiff, settings.currency)}`
-      : `Превышение лимита: ${formatMoney(Math.abs(limitDiff), settings.currency)}`;
+      ? `Осталось на сегодня: ${formatMoney(limitDiff, settings.currency)}`
+      : `Перерасход дня: ${formatMoney(Math.abs(limitDiff), settings.currency)}`;
 
   const categories = categoryTotals.length
     ? categoryTotals.map((item) => `${item.category}: ${formatMoney(item.total, settings.currency)}`).join('\n')
@@ -69,7 +78,7 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings): st
     'Отчёт Куда ушло?',
     `Сегодня: ${formatMoney(todayTotal, settings.currency)}`,
     `За неделю: ${formatMoney(weekTotal, settings.currency)}`,
-    `Дневной лимит: ${formatMoney(settings.dailyLimit, settings.currency)}`,
+    `Дневной ориентир: ${formatMoney(dailyTarget, settings.currency)} / день`,
     limitLine,
     '',
     'Категории за неделю:',
@@ -81,7 +90,8 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
-  const limitDiff = settings.dailyLimit - todayTotal;
+  const dailyTarget = getAutoDailyTarget(expenses, settings);
+  const limitDiff = dailyTarget - todayTotal;
 
   return {
     type: 'expense_report',
@@ -91,7 +101,8 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
     generatedAt: new Date().toISOString(),
     todayTotal,
     weekTotal,
-    dailyLimit: settings.dailyLimit,
+    dailyLimit: dailyTarget,
+    dailyTarget,
     limitDiff,
     isLimitExceeded: limitDiff < 0,
     categories: getCategoryTotals(weekExpenses).map((item) => ({

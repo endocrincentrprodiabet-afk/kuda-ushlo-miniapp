@@ -1,9 +1,11 @@
 import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import { AnimatedMoney } from '../components/AnimatedMoney';
-import { getMonthlySpendingLimit } from '../lib/calculations';
-import type { Settings } from '../types';
+import { getAutoDailyTarget, getMonthlySpendingLimit } from '../lib/calculations';
+import { formatMoney } from '../lib/format';
+import type { Expense, Settings } from '../types';
 
 type SettingsScreenProps = {
+  expenses: Expense[];
   settings: Settings;
   onSaveSettings: (settings: Settings) => void;
   onClearData: () => void;
@@ -52,8 +54,7 @@ function getSavingsWarningContent(savingsGoal: number, monthlyBudget: number): {
   };
 }
 
-export function SettingsScreen({ settings, onSaveSettings, onClearData }: SettingsScreenProps) {
-  const [dailyLimit, setDailyLimit] = useState(String(settings.dailyLimit));
+export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData }: SettingsScreenProps) {
   const [monthlyBudget, setMonthlyBudget] = useState(String(settings.monthlyBudget));
   const [savingsGoal, setSavingsGoal] = useState(settings.savingsGoal);
   const [saved, setSaved] = useState(false);
@@ -65,17 +66,24 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
   const canClearData = clearConfirmationText.trim() === 'ОЧИСТИТЬ';
   const parsedMonthlyBudget = parseMoneyInput(monthlyBudget);
   const clampedSavingsGoal = snapSavingsGoal(savingsGoal, parsedMonthlyBudget);
-  const monthlySpendingLimit = getMonthlySpendingLimit(parsedMonthlyBudget, clampedSavingsGoal);
+  const previewSettings: Settings = {
+    ...settings,
+    dailyLimit: 0,
+    monthlyBudget: parsedMonthlyBudget,
+    savingsGoal: clampedSavingsGoal,
+    currency: 'RUB',
+  };
+  const monthlySpendingLimit = getMonthlySpendingLimit(previewSettings);
+  const autoDailyTarget = getAutoDailyTarget(expenses, previewSettings);
   const savingsPercent = parsedMonthlyBudget > 0 ? (clampedSavingsGoal / parsedMonthlyBudget) * 100 : 0;
   const savingsWarningContent = pendingSettings
     ? getSavingsWarningContent(pendingSettings.savingsGoal, pendingSettings.monthlyBudget)
     : null;
 
   useEffect(() => {
-    setDailyLimit(String(settings.dailyLimit));
     setMonthlyBudget(String(settings.monthlyBudget));
     setSavingsGoal(settings.savingsGoal);
-  }, [settings.dailyLimit, settings.monthlyBudget, settings.savingsGoal]);
+  }, [settings.monthlyBudget, settings.savingsGoal]);
 
   useEffect(() => {
     setSavingsGoal((current) => snapSavingsGoal(current, parsedMonthlyBudget));
@@ -83,7 +91,6 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
 
   function commitSettings(nextSettings: Settings) {
     onSaveSettings(nextSettings);
-    setDailyLimit(String(nextSettings.dailyLimit));
     setMonthlyBudget(String(nextSettings.monthlyBudget));
     setSavingsGoal(nextSettings.savingsGoal);
     setSaved(true);
@@ -92,11 +99,10 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsedLimit = parseMoneyInput(dailyLimit);
     const nextMonthlyBudget = parseMoneyInput(monthlyBudget);
     const nextSavingsGoal = nextMonthlyBudget > 0 ? snapSavingsGoal(savingsGoal, nextMonthlyBudget) : 0;
     const nextSettings: Settings = {
-      dailyLimit: parsedLimit,
+      dailyLimit: 0,
       monthlyBudget: nextMonthlyBudget,
       savingsGoal: nextSavingsGoal,
       currency: 'RUB',
@@ -159,15 +165,10 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
         </header>
 
         <form className="form-card" onSubmit={handleSubmit}>
-          <label>
-            <span>Дневной лимит</span>
-            <input inputMode="decimal" min="0" onChange={(event) => setDailyLimit(event.target.value)} type="number" value={dailyLimit} />
-          </label>
-
           <section className="settings-plan">
             <div className="settings-plan__head">
               <h2>План месяца</h2>
-              <p>Эта сумма будет использоваться как основа для месячного плана.</p>
+              <p>Месячный бюджет минус сумма «Отложить» формируют план расходов.</p>
             </div>
 
             <label className="settings-plan__budget">
@@ -223,11 +224,20 @@ export function SettingsScreen({ settings, onSaveSettings, onClearData }: Settin
                 </div>
               </div>
 
-              <div className="monthly-spending-limit">
-                <span>На расходы:</span>
-                <strong>
-                  <AnimatedMoney amount={monthlySpendingLimit} currency={settings.currency} />
-                </strong>
+              <div className="settings-plan-metrics">
+                <div className="monthly-spending-limit">
+                  <span>На расходы:</span>
+                  <strong>
+                    <AnimatedMoney amount={monthlySpendingLimit} currency={settings.currency} />
+                  </strong>
+                </div>
+                <div className="monthly-spending-limit monthly-spending-limit--secondary">
+                  <span>Дневной ориентир:</span>
+                  <strong>{formatMoney(autoDailyTarget, settings.currency)} / день</strong>
+                </div>
+                <p className="settings-plan-note">
+                  Считается автоматически от суммы «На расходы» и оставшихся дней месяца.
+                </p>
               </div>
             </div>
           </section>

@@ -132,7 +132,12 @@ export default function App() {
         ) : null}
 
         {screen === 'settings' ? (
-          <SettingsScreen settings={settings} onSaveSettings={setSettings} onClearData={handleClearData} />
+          <SettingsScreen
+            expenses={expenses}
+            settings={settings}
+            onSaveSettings={setSettings}
+            onClearData={handleClearData}
+          />
         ) : null}
 
         <BottomNav currentScreen={screen} onNavigate={handleNavigate} />

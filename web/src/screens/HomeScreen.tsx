@@ -1,6 +1,7 @@
 import { ExpenseList } from '../components/ExpenseList';
 import {
   getBudgetUsagePercent,
+  getAutoDailyTarget,
   getCategoryTotals,
   getCurrentWeekExpenses,
   getLargestCategory,
@@ -67,7 +68,8 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const currentWeekTotal = sumExpenses(getCurrentWeekExpenses(expenses));
-  const monthlySpendingLimit = getMonthlySpendingLimit(settings.monthlyBudget, settings.savingsGoal);
+  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
+  const autoDailyTarget = getAutoDailyTarget(expenses, settings);
   const monthlyStats = getMonthlyBudgetStats(expenses, monthlySpendingLimit);
   const hasMonthlyBudget = settings.monthlyBudget > 0;
   const hasMonthlySpendingLimit = monthlySpendingLimit > 0;
@@ -85,10 +87,17 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortExpensesByDate(expenses).slice(0, 4);
-  const limitDiff = settings.dailyLimit - todayTotal;
-  const hasDailyLimit = settings.dailyLimit > 0;
+  const limitDiff = autoDailyTarget - todayTotal;
+  const hasDailyTarget = autoDailyTarget > 0;
   const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';
-  const dailyBalanceCaption = limitDiff >= 0 ? 'Ты в пределах лимита' : 'Лимит превышен';
+  const dailyBalanceCaption = limitDiff >= 0 ? 'Ты в пределах ориентира' : 'Ориентир превышен';
+  const heroDailyStatus = hasDailyTarget
+    ? limitDiff >= 0
+      ? `Осталось на сегодня: ${formatMoney(limitDiff, settings.currency)}`
+      : `Перерасход дня: ${formatMoney(Math.abs(limitDiff), settings.currency)}`
+    : todayTotal > 0
+      ? 'Расходы есть, но месяц пока не настроен'
+      : 'Ориентир появится после настройки месяца';
 
   return (
     <main className="screen">
@@ -102,16 +111,10 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
       <section className="hero-card">
         <span>Сегодня потрачено</span>
         <strong>{formatMoney(todayTotal, settings.currency)}</strong>
-        <p>
-          {hasDailyLimit
-            ? limitDiff >= 0
-              ? `Осталось ${formatMoney(limitDiff, settings.currency)} из дневного лимита`
-              : `Лимит превышен на ${formatMoney(Math.abs(limitDiff), settings.currency)}`
-            : 'Дневной лимит можно задать в настройках'}
-        </p>
+        <p>{heroDailyStatus}</p>
       </section>
 
-      {hasDailyLimit ? (
+      {hasDailyTarget || todayTotal > 0 ? (
         <section className={`balance-card ${limitDiff >= 0 ? 'balance-card--safe' : 'balance-card--over'}`}>
           <div>
             <span>{dailyBalanceTitle}</span>
