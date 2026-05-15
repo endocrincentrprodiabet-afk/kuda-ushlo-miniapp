@@ -1,4 +1,4 @@
-import { isToday, isWithinLastSevenDays } from './date';
+import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
 import type { Expense, ExpenseCategory } from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
@@ -11,6 +11,10 @@ export function getTodayExpenses(expenses: Expense[]): Expense[] {
 
 export function getWeekExpenses(expenses: Expense[]): Expense[] {
   return expenses.filter((expense) => isWithinLastSevenDays(expense.date));
+}
+
+export function getCurrentWeekExpenses(expenses: Expense[]): Expense[] {
+  return expenses.filter((expense) => isWithinCurrentWeek(expense.date));
 }
 
 export function getMonthExpenses(expenses: Expense[], date = new Date()): Expense[] {
@@ -45,14 +49,69 @@ export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number
   };
 }
 
+type MonthWeekGroup = {
+  startDate: Date;
+  endDate: Date;
+};
+
+function getDaysCount(startDate: Date, endDate: Date): number {
+  const millisecondsInDay = 24 * 60 * 60 * 1000;
+
+  return Math.round((endDate.getTime() - startDate.getTime()) / millisecondsInDay) + 1;
+}
+
+function mergeWeekGroups(firstGroup: MonthWeekGroup, secondGroup: MonthWeekGroup): MonthWeekGroup {
+  return {
+    startDate: firstGroup.startDate,
+    endDate: secondGroup.endDate,
+  };
+}
+
+function getMonthWeekGroups(date = new Date()): MonthWeekGroup[] {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  const groups: MonthWeekGroup[] = [];
+  let cursor = monthStart;
+
+  while (cursor <= monthEnd) {
+    const startDate = cursor > monthStart ? cursor : monthStart;
+    const calendarWeekEnd = getWeekEnd(cursor);
+    const endDate = calendarWeekEnd < monthEnd ? calendarWeekEnd : monthEnd;
+
+    groups.push({ startDate, endDate });
+    cursor = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+  }
+
+  while (groups.length > 4) {
+    const firstDaysCount = getDaysCount(groups[0].startDate, groups[0].endDate);
+    const lastGroup = groups[groups.length - 1];
+    const lastDaysCount = getDaysCount(lastGroup.startDate, lastGroup.endDate);
+    const shouldMergeFirst = firstDaysCount <= lastDaysCount;
+
+    if (shouldMergeFirst) {
+      groups.splice(0, 2, mergeWeekGroups(groups[0], groups[1]));
+    } else {
+      const previousGroup = groups[groups.length - 2];
+      groups.splice(groups.length - 2, 2, mergeWeekGroups(previousGroup, lastGroup));
+    }
+  }
+
+  return groups;
+}
+
 export function getMonthWeeklyTotals(expenses: Expense[], date = new Date()): number[] {
-  const totals = [0, 0, 0, 0, 0];
+  const groups = getMonthWeekGroups(date);
+  const totals = groups.map(() => 0);
 
   getMonthExpenses(expenses, date).forEach((expense) => {
     const expenseDate = new Date(`${expense.date}T00:00:00`);
-    const weekIndex = Math.min(4, Math.floor((expenseDate.getDate() - 1) / 7));
+    const weekIndex = groups.findIndex((group) => expenseDate >= group.startDate && expenseDate <= group.endDate);
 
-    totals[weekIndex] += expense.amount;
+    if (weekIndex >= 0) {
+      totals[weekIndex] += expense.amount;
+    }
   });
 
   return totals;
@@ -61,11 +120,14 @@ export function getMonthWeeklyTotals(expenses: Expense[], date = new Date()): nu
 export type MonthWeeklyBudgetStat = {
   weekIndex: number;
   total: number;
+  startDate: string;
+  endDate: string;
   startDay: number;
   endDay: number;
   daysCount: number;
   target: number;
   fillPercent: number;
+  cappedFillPercent: number;
   isOverTarget: boolean;
 };
 
@@ -74,26 +136,39 @@ export function getMonthWeeklyBudgetStats(
   monthlyBudget: number,
   date = new Date(),
 ): MonthWeeklyBudgetStat[] {
-  const totals = getMonthWeeklyTotals(expenses, date);
+  const groups = getMonthWeekGroups(date);
+  const totals = groups.map(() => 0);
+
+  getMonthExpenses(expenses, date).forEach((expense) => {
+    const expenseDate = new Date(`${expense.date}T00:00:00`);
+    const weekIndex = groups.findIndex((group) => expenseDate >= group.startDate && expenseDate <= group.endDate);
+
+    if (weekIndex >= 0) {
+      totals[weekIndex] += expense.amount;
+    }
+  });
+
   const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const dailyMonthlyTarget = monthlyBudget > 0 ? monthlyBudget / daysInMonth : 0;
   const maxWeeklyTotal = Math.max(...totals, 1);
 
   return totals.map((total, index) => {
-    const startDay = index * 7 + 1;
-    const endDay = Math.min(startDay + 6, daysInMonth);
-    const daysCount = Math.max(0, endDay - startDay + 1);
+    const group = groups[index];
+    const daysCount = getDaysCount(group.startDate, group.endDate);
     const target = monthlyBudget > 0 ? dailyMonthlyTarget * daysCount : maxWeeklyTotal;
     const rawFillPercent = target > 0 ? (total / target) * 100 : 0;
 
     return {
       weekIndex: index + 1,
       total,
-      startDay,
-      endDay,
+      startDate: toDateInputValue(group.startDate),
+      endDate: toDateInputValue(group.endDate),
+      startDay: group.startDate.getDate(),
+      endDay: group.endDate.getDate(),
       daysCount,
       target,
-      fillPercent: Math.min(rawFillPercent, 100),
+      fillPercent: rawFillPercent,
+      cappedFillPercent: Math.min(rawFillPercent, 100),
       isOverTarget: monthlyBudget > 0 && target > 0 && total > target,
     };
   });

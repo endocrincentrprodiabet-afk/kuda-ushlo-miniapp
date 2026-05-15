@@ -2,6 +2,7 @@ import { ExpenseList } from '../components/ExpenseList';
 import {
   getBudgetUsagePercent,
   getCategoryTotals,
+  getCurrentWeekExpenses,
   getLargestCategory,
   getMonthWeeklyBudgetStats,
   getMonthlyBudgetStats,
@@ -64,6 +65,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
+  const currentWeekTotal = sumExpenses(getCurrentWeekExpenses(expenses));
   const monthlyStats = getMonthlyBudgetStats(expenses, settings.monthlyBudget);
   const hasMonthlyBudget = settings.monthlyBudget > 0;
   const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > settings.monthlyBudget;
@@ -139,8 +141,8 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
 
       <div className="grid-two summary-grid">
         <section className="card">
-          <span className="muted">Дневной лимит</span>
-          <strong>{formatMoney(settings.dailyLimit, settings.currency)}</strong>
+          <span className="muted">За неделю</span>
+          <strong>{formatMoney(currentWeekTotal, settings.currency)}</strong>
         </section>
         <section className={`card summary-card--month ${isMonthOverBudget ? 'summary-card--month-over' : ''}`}>
           <span className="muted">За месяц</span>
@@ -170,7 +172,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
                   >
                     <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
                     <div className="month-weekly-bar__track">
-                      <span style={{ height: week.total > 0 ? `${Math.max(8, week.fillPercent)}%` : '2px' }} />
+                      <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
                     </div>
                     <span className="month-weekly-bar__label">{week.weekIndex}</span>
                   </div>
