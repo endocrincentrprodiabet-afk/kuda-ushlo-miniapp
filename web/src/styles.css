@@ -582,11 +582,9 @@ h2 {
 .week-details-overlay {
   position: fixed;
   inset: 0;
-  min-height: 100vh;
   min-height: 100dvh;
-  z-index: 34;
-  display: grid;
-  place-items: end center;
+  z-index: 1000;
+  display: block;
   padding: 0;
   background: rgba(8, 10, 13, 0.76);
   backdrop-filter: blur(14px);
@@ -595,19 +593,17 @@ h2 {
 
 .week-details-sheet {
   position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 14px;
   display: flex;
-  width: 100%;
-  height: auto;
-  max-height: 85vh;
-  max-height: 85dvh;
+  width: auto;
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(245, 247, 250, 0.12);
-  border-bottom: 0;
-  border-radius: 24px 24px 0 0;
+  border-radius: 24px;
   padding: 18px 18px 0;
   background:
     linear-gradient(180deg, rgba(28, 34, 43, 0.98), rgba(15, 19, 24, 0.99)),
@@ -617,12 +613,17 @@ h2 {
 }
 
 .week-details-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
   padding-bottom: 16px;
+  background:
+    linear-gradient(180deg, rgba(28, 34, 43, 0.98), rgba(25, 31, 39, 0.98));
 }
 
 .week-details-header > div {
@@ -636,7 +637,7 @@ h2 {
   display: grid;
   gap: 16px;
   min-height: 0;
-  max-height: inherit;
+  max-height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
@@ -1798,17 +1799,18 @@ input::placeholder {
   }
 
   .week-details-overlay {
+    display: grid;
     place-items: center;
   }
 
   .week-details-sheet {
     position: relative;
+    top: auto;
     right: auto;
     bottom: auto;
     left: auto;
-    width: min(100%, 488px);
-    max-height: min(86vh, 760px);
-    max-height: min(86dvh, 760px);
+    width: min(calc(100vw - 36px), 560px);
+    max-height: 88dvh;
     border: 1px solid rgba(245, 247, 250, 0.12);
     border-radius: 18px;
   }

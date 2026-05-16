@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { MonthWeeklyBudgetStat } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
 import type { Settings } from '../types';
@@ -91,6 +92,9 @@ export function WeekDetailsSheet({
   const insight = getWeekInsight(week, forecast.projectedMonthTotal, monthlySpendingLimit, settings.currency);
 
   useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         onClose();
@@ -100,11 +104,12 @@ export function WeekDetailsSheet({
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      document.body.style.overflow = previousBodyOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div className="week-details-overlay" onClick={onClose} role="presentation">
       <section
         className="week-details-sheet"
@@ -190,6 +195,7 @@ export function WeekDetailsSheet({
         </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
