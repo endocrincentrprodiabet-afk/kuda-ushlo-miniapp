@@ -123,6 +123,7 @@ export function WeekDetailsSheet({
           </button>
         </div>
 
+        <div className="week-details-scroll">
         <div className="weekly-summary">
           <div>
             <strong>{formatMoney(week.total, settings.currency)}</strong>
@@ -186,6 +187,7 @@ export function WeekDetailsSheet({
         <div className="insight-block">
           <h3>Подсказка недели</h3>
           <p>{insight}</p>
+        </div>
         </div>
       </section>
     </div>
