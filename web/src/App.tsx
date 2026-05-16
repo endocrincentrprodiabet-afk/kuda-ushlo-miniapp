@@ -4,15 +4,26 @@ import { SplashScreen } from './components/SplashScreen';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { ReserveScreen } from './screens/ReserveScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { DEFAULT_SETTINGS } from './lib/constants';
+import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS } from './lib/constants';
 import { formatDate } from './lib/date';
 import { formatMoney } from './lib/format';
-import { clearAllData, loadExpenses, loadSettings, saveExpenses, saveSettings } from './lib/storage';
+import {
+  clearAllData,
+  loadExpenses,
+  loadReserveClosures,
+  loadReserveGoal,
+  loadSettings,
+  saveExpenses,
+  saveReserveClosures,
+  saveReserveGoal,
+  saveSettings,
+} from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
-import type { Expense, HistoryFilter, Screen, Settings } from './types';
+import type { Expense, HistoryFilter, ReserveClosure, ReserveGoal, Screen, Settings } from './types';
 
-const screenOrder: Screen[] = ['home', 'add', 'history', 'settings'];
+const screenOrder: Screen[] = ['home', 'add', 'history', 'reserve', 'settings'];
 const swipeThreshold = 70;
 
 function isSwipeBlocked(target: EventTarget | null): boolean {
@@ -33,6 +44,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [reserveGoal, setReserveGoal] = useState<ReserveGoal>(() => loadReserveGoal());
+  const [reserveClosures, setReserveClosures] = useState<ReserveClosure[]>(() => loadReserveClosures());
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
@@ -61,6 +74,14 @@ export default function App() {
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    saveReserveGoal(reserveGoal);
+  }, [reserveGoal]);
+
+  useEffect(() => {
+    saveReserveClosures(reserveClosures);
+  }, [reserveClosures]);
 
   function handleAddExpense(expense: Expense) {
     setExpenses((current) => [expense, ...current]);
@@ -103,6 +124,8 @@ export default function App() {
     clearAllData();
     setExpenses([]);
     setSettings(DEFAULT_SETTINGS);
+    setReserveGoal(DEFAULT_RESERVE_GOAL);
+    setReserveClosures([]);
     setReportStatus('');
   }
 
@@ -201,6 +224,17 @@ export default function App() {
             settings={settings}
             onSaveSettings={setSettings}
             onClearData={handleClearData}
+          />
+        ) : null}
+
+        {screen === 'reserve' ? (
+          <ReserveScreen
+            expenses={expenses}
+            settings={settings}
+            reserveGoal={reserveGoal}
+            reserveClosures={reserveClosures}
+            onSaveReserveGoal={setReserveGoal}
+            onSaveReserveClosures={setReserveClosures}
           />
         ) : null}
 

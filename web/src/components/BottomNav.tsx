@@ -9,6 +9,7 @@ const items: Array<{ screen: Screen; label: string }> = [
   { screen: 'home', label: 'Главная' },
   { screen: 'add', label: 'Добавить' },
   { screen: 'history', label: 'История' },
+  { screen: 'reserve', label: 'Запас' },
   { screen: 'settings', label: 'Настройки' },
 ];
 

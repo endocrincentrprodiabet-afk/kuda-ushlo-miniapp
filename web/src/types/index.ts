@@ -25,6 +25,22 @@ export type Settings = {
   currency: 'RUB';
 };
 
-export type Screen = 'home' | 'add' | 'history' | 'settings';
+export type ReserveGoal = {
+  title: string;
+  targetAmount: number;
+};
+
+export type ReserveClosure = {
+  id: string;
+  month: string;
+  plannedSavings: number;
+  actualSaved: number;
+  monthlyBudget: number;
+  monthTotal: number;
+  spendingLimit: number;
+  confirmedAt: string;
+};
+
+export type Screen = 'home' | 'add' | 'history' | 'reserve' | 'settings';
 
 export type HistoryFilter = 'today' | 'week' | 'all';

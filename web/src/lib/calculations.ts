@@ -1,5 +1,5 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
-import type { Expense, ExpenseCategory, Settings } from '../types';
+import type { Expense, ExpenseCategory, ReserveClosure, Settings } from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
@@ -236,6 +236,26 @@ export function getBudgetUsagePercent(monthTotal: number, monthlyBudget: number)
   }
 
   return (monthTotal / monthlyBudget) * 100;
+}
+
+export function getReserveTotal(reserveClosures: ReserveClosure[]): number {
+  return reserveClosures.reduce((total, closure) => total + Math.max(0, closure.actualSaved), 0);
+}
+
+export function getCurrentMonthKey(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function getSuggestedMonthlySavings(monthlyBudget: number, monthTotal: number): number {
+  return Math.max(Math.max(0, monthlyBudget) - Math.max(0, monthTotal), 0);
+}
+
+export function getGoalProgress(reserveTotal: number, targetAmount: number): number {
+  if (targetAmount <= 0) {
+    return 0;
+  }
+
+  return (Math.max(0, reserveTotal) / targetAmount) * 100;
 }
 
 export function getMonthBalanceStatus(
