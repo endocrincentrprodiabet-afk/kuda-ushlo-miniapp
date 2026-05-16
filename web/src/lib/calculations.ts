@@ -102,7 +102,7 @@ export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number
   const monthTotal = sumExpenses(getMonthExpenses(expenses, date));
   const balance = monthlyBudget - monthTotal;
   const daysLeft = getDaysLeftInMonth(date);
-  const comfortDailyPace = balance > 0 ? balance / daysLeft : 0;
+  const comfortDailyPace = monthlyBudget > 0 ? Math.max(balance, 0) / Math.max(daysLeft, 1) : 0;
 
   return {
     monthTotal,

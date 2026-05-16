@@ -155,7 +155,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
           {!isMonthOverBudget ? (
             <div className="month-budget-metric">
               <span>Комфортный темп</span>
-              <strong>{formatMoney(currentDailyTarget, settings.currency)} / день</strong>
+              <strong>{formatMoney(monthlyStats.comfortDailyPace, settings.currency)} / день</strong>
             </div>
           ) : null}
         </section>
