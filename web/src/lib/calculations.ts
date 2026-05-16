@@ -38,6 +38,10 @@ export function getDaysLeftInMonthIncludingToday(date = new Date()): number {
   return getDaysLeftInMonth(date);
 }
 
+export function getDaysInMonth(date = new Date()): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
 export function getMonthlySpendingLimit(settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>): number {
   const monthlyBudget = Math.max(settings.monthlyBudget, 0);
   const savingsGoal = Math.min(Math.max(settings.savingsGoal, 0), monthlyBudget);
@@ -58,7 +62,17 @@ export function getSpentBeforeToday(expenses: Expense[], date = new Date()): num
   );
 }
 
-export function getAutoDailyTarget(
+export function getPlannedDailyTarget(settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>, date = new Date()): number {
+  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
+
+  if (monthlySpendingLimit <= 0) {
+    return 0;
+  }
+
+  return monthlySpendingLimit / getDaysInMonth(date);
+}
+
+export function getCurrentDailyTarget(
   expenses: Expense[],
   settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>,
   date = new Date(),
@@ -74,6 +88,14 @@ export function getAutoDailyTarget(
   const daysLeftIncludingToday = getDaysLeftInMonthIncludingToday(date);
 
   return remainingBeforeToday / daysLeftIncludingToday;
+}
+
+export function getAutoDailyTarget(
+  expenses: Expense[],
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>,
+  date = new Date(),
+): number {
+  return getCurrentDailyTarget(expenses, settings, date);
 }
 
 export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number, date = new Date()) {

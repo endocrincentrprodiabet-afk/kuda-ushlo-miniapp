@@ -220,7 +220,6 @@ export default function App() {
 
         {screen === 'settings' ? (
           <SettingsScreen
-            expenses={expenses}
             settings={settings}
             onSaveSettings={setSettings}
             onClearData={handleClearData}

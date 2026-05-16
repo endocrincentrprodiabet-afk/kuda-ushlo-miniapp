@@ -1,6 +1,6 @@
 import {
-  getAutoDailyTarget,
   getCategoryTotals,
+  getCurrentDailyTarget,
   getTodayExpenses,
   getWeekExpenses,
   sortByCreatedAt,
@@ -63,7 +63,7 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings): st
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
-  const dailyTarget = getAutoDailyTarget(expenses, settings);
+  const dailyTarget = getCurrentDailyTarget(expenses, settings);
   const limitDiff = dailyTarget - todayTotal;
   const limitLine =
     limitDiff >= 0
@@ -90,7 +90,7 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
-  const dailyTarget = getAutoDailyTarget(expenses, settings);
+  const dailyTarget = getCurrentDailyTarget(expenses, settings);
   const limitDiff = dailyTarget - todayTotal;
 
   return {

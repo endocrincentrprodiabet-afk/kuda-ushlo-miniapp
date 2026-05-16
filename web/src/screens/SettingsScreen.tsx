@@ -1,12 +1,11 @@
 import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
-import { getAutoDailyTarget, getMonthlySpendingLimit } from '../lib/calculations';
+import { getMonthlySpendingLimit, getPlannedDailyTarget } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
-import type { Expense, Settings } from '../types';
+import type { Settings } from '../types';
 
 type SettingsScreenProps = {
-  expenses: Expense[];
   settings: Settings;
   onSaveSettings: (settings: Settings) => void;
   onClearData: () => void;
@@ -55,7 +54,7 @@ function getSavingsWarningContent(savingsGoal: number, monthlyBudget: number): {
   };
 }
 
-export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData }: SettingsScreenProps) {
+export function SettingsScreen({ settings, onSaveSettings, onClearData }: SettingsScreenProps) {
   const [monthlyBudget, setMonthlyBudget] = useState(String(settings.monthlyBudget));
   const [savingsGoal, setSavingsGoal] = useState(settings.savingsGoal);
   const [saved, setSaved] = useState(false);
@@ -75,7 +74,7 @@ export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData
     currency: 'RUB',
   };
   const monthlySpendingLimit = getMonthlySpendingLimit(previewSettings);
-  const autoDailyTarget = getAutoDailyTarget(expenses, previewSettings);
+  const plannedDailyTarget = getPlannedDailyTarget(previewSettings);
   const savingsPercent = parsedMonthlyBudget > 0 ? (clampedSavingsGoal / parsedMonthlyBudget) * 100 : 0;
   const savingsWarningContent = pendingSettings
     ? getSavingsWarningContent(pendingSettings.savingsGoal, pendingSettings.monthlyBudget)
@@ -279,11 +278,11 @@ export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData
                   </strong>
                 </div>
                 <div className="monthly-spending-limit monthly-spending-limit--secondary">
-                  <span>Дневной ориентир:</span>
-                  <strong>{formatMoney(autoDailyTarget, settings.currency)} / день</strong>
+                  <span>Плановый ориентир:</span>
+                  <strong>{formatMoney(plannedDailyTarget, settings.currency)} / день</strong>
                 </div>
                 <p className="settings-plan-note">
-                  Считается автоматически от суммы «На расходы» и оставшихся дней месяца.
+                  Считается от суммы “На расходы”.
                 </p>
               </div>
             </div>

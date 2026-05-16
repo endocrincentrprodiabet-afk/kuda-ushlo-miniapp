@@ -3,8 +3,8 @@ import { ExpenseList } from '../components/ExpenseList';
 import { WeekDetailsSheet } from '../components/WeekDetailsSheet';
 import {
   getBudgetUsagePercent,
-  getAutoDailyTarget,
   getCategoryTotals,
+  getCurrentDailyTarget,
   getCurrentWeekExpenses,
   getLargestCategory,
   getMonthlySpendingLimit,
@@ -72,7 +72,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const weekTotal = sumExpenses(weekExpenses);
   const currentWeekTotal = sumExpenses(getCurrentWeekExpenses(expenses));
   const monthlySpendingLimit = getMonthlySpendingLimit(settings);
-  const autoDailyTarget = getAutoDailyTarget(expenses, settings);
+  const currentDailyTarget = getCurrentDailyTarget(expenses, settings);
   const monthlyStats = getMonthlyBudgetStats(expenses, monthlySpendingLimit);
   const hasMonthlyBudget = settings.monthlyBudget > 0;
   const hasMonthlySpendingLimit = monthlySpendingLimit > 0;
@@ -91,8 +91,8 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortExpensesByDate(expenses).slice(0, 4);
-  const limitDiff = autoDailyTarget - todayTotal;
-  const hasDailyTarget = autoDailyTarget > 0;
+  const limitDiff = currentDailyTarget - todayTotal;
+  const hasDailyTarget = currentDailyTarget > 0;
   const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';
   const dailyBalanceCaption = limitDiff >= 0 ? 'Ты в пределах ориентира' : 'Ориентир превышен';
   const heroDailyStatus = hasDailyTarget
@@ -155,7 +155,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
           {!isMonthOverBudget ? (
             <div className="month-budget-metric">
               <span>Комфортный темп</span>
-              <strong>{formatMoney(monthlyStats.comfortDailyPace, settings.currency)} / день</strong>
+              <strong>{formatMoney(currentDailyTarget, settings.currency)} / день</strong>
             </div>
           ) : null}
         </section>
