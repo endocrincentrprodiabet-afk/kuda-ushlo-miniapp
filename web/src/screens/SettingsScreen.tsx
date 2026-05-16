@@ -1,4 +1,5 @@
 import { CSSProperties, FormEvent, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { getAutoDailyTarget, getMonthlySpendingLimit } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
@@ -89,6 +90,19 @@ export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData
     setSavingsGoal((current) => snapSavingsGoal(current, parsedMonthlyBudget));
   }, [parsedMonthlyBudget]);
 
+  useEffect(() => {
+    if (!savingsConfirmationOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [savingsConfirmationOpen]);
+
   function commitSettings(nextSettings: Settings) {
     onSaveSettings(nextSettings);
     setMonthlyBudget(String(nextSettings.monthlyBudget));
@@ -153,6 +167,39 @@ export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData
     setSaved(false);
     setDataCleared(true);
   }
+
+  const savingsConfirmationModal =
+    savingsConfirmationOpen && savingsWarningContent
+      ? createPortal(
+          <div className="savings-warning-backdrop" role="presentation">
+            <section
+              className="confirm-modal confirm-modal--savings"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="savings-warning-title"
+            >
+              <div className="confirm-modal__scroll">
+                <div className="confirm-modal__head">
+                  <p className="subtitle">План месяца</p>
+                  <h2 id="savings-warning-title">{savingsWarningContent.title}</h2>
+                </div>
+
+                <p className="confirm-modal__warning">{savingsWarningContent.text}</p>
+
+                <div className="confirm-modal__actions">
+                  <button className="secondary-button" onClick={handleReviewSavingsSettings} type="button">
+                    Пересмотреть
+                  </button>
+                  <button className="primary-button" onClick={handleConfirmSavingsSettings} type="button">
+                    Да, сохранить
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <>
@@ -264,27 +311,7 @@ export function SettingsScreen({ expenses, settings, onSaveSettings, onClearData
         </section>
       </main>
 
-      {savingsConfirmationOpen && savingsWarningContent ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="confirm-modal confirm-modal--savings" role="dialog" aria-modal="true" aria-labelledby="savings-warning-title">
-            <div className="confirm-modal__head">
-              <p className="subtitle">План месяца</p>
-              <h2 id="savings-warning-title">{savingsWarningContent.title}</h2>
-            </div>
-
-            <p className="confirm-modal__warning">{savingsWarningContent.text}</p>
-
-            <div className="confirm-modal__actions">
-              <button className="secondary-button" onClick={handleReviewSavingsSettings} type="button">
-                Пересмотреть
-              </button>
-              <button className="primary-button" onClick={handleConfirmSavingsSettings} type="button">
-                Да, сохранить
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {savingsConfirmationModal}
 
       {clearConfirmationOpen ? (
         <div className="modal-backdrop" role="presentation">

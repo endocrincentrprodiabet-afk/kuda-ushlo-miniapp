@@ -149,7 +149,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
                 : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}
             </p>
             {normalizedSavingsGoal > 0 ? (
-              <p>Отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p>
+              <p>Отложено: {formatMoney(normalizedSavingsGoal, settings.currency)}</p>
             ) : null}
           </div>
           {!isMonthOverBudget ? (

@@ -29,6 +29,8 @@
   --danger-soft: #321624;
   --danger-line: rgba(255, 46, 138, 0.35);
   --shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+  --app-max-width: 520px;
+  --bottom-nav-height: 76px;
 }
 
 * {
@@ -65,10 +67,10 @@ button:disabled {
 }
 
 .app-shell {
-  width: min(100%, 520px);
+  width: min(100%, var(--app-max-width));
   min-height: 100vh;
   margin: 0 auto;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 
 .app-shell--loading {
@@ -146,7 +148,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 24px 16px 10px;
+  padding: 24px 16px calc(24px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
 }
 
 .top-header {
@@ -1492,6 +1494,18 @@ input::placeholder {
   animation: modal-backdrop-enter 160ms ease both;
 }
 
+.savings-warning-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: block;
+  min-height: 100dvh;
+  background: rgba(8, 10, 13, 0.76);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: modal-backdrop-enter 160ms ease both;
+}
+
 .confirm-modal {
   display: flex;
   width: min(100%, 488px);
@@ -1521,6 +1535,22 @@ input::placeholder {
     var(--surface);
 }
 
+.savings-warning-backdrop .confirm-modal--savings {
+  position: fixed;
+  top: 50%;
+  right: 16px;
+  left: 16px;
+  width: auto;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  gap: 0;
+  overflow: hidden;
+  border-color: rgba(245, 247, 250, 0.12);
+  border-radius: 24px;
+  padding: 0;
+  transform: translateY(-50%);
+  animation: savings-modal-enter-mobile 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 .confirm-modal--savings h2 {
   color: var(--text);
 }
@@ -1533,6 +1563,19 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.confirm-modal--savings .confirm-modal__scroll {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 18px calc(16px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
 }
 
 .confirm-modal__expense {
@@ -1616,19 +1659,20 @@ input::placeholder {
 
 .bottom-nav {
   position: fixed;
-  right: 0;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  z-index: 25;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  width: min(100%, 520px);
-  margin: 0 auto;
+  width: min(100%, var(--app-max-width));
   padding: 9px 10px calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-soft);
   background: rgba(11, 14, 18, 0.9);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   box-shadow: 0 -16px 34px rgba(0, 0, 0, 0.34);
+  transform: translateX(-50%);
 }
 
 .nav-button {
@@ -1752,6 +1796,7 @@ input::placeholder {
   .splash-screen--leaving,
   .modal-backdrop,
   .confirm-modal,
+  .savings-warning-backdrop,
   .week-details-overlay,
   .week-details-sheet,
   .splash-content,
@@ -1786,6 +1831,30 @@ input::placeholder {
   }
 }
 
+@keyframes savings-modal-enter-mobile {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% + 8px)) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes savings-modal-enter-desktop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 @keyframes week-details-enter {
   from {
     opacity: 0;
@@ -1800,7 +1869,7 @@ input::placeholder {
 
 @media (min-width: 720px) {
   .screen {
-    padding: 34px 18px 14px;
+    padding: 34px 18px calc(28px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
   }
 
   .actions {
@@ -1822,5 +1891,14 @@ input::placeholder {
     max-height: 88dvh;
     border: 1px solid rgba(245, 247, 250, 0.12);
     border-radius: 18px;
+  }
+
+  .savings-warning-backdrop .confirm-modal--savings {
+    left: 50%;
+    right: auto;
+    width: min(calc(100% - 32px), 520px);
+    max-height: 88dvh;
+    transform: translate(-50%, -50%);
+    animation-name: savings-modal-enter-desktop;
   }
 }

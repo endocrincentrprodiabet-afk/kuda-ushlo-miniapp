@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { SplashScreen } from './components/SplashScreen';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
@@ -12,6 +12,21 @@ import { clearAllData, loadExpenses, loadSettings, saveExpenses, saveSettings } 
 import { sendTelegramReport } from './lib/telegram';
 import type { Expense, HistoryFilter, Screen, Settings } from './types';
 
+const screenOrder: Screen[] = ['home', 'add', 'history', 'settings'];
+const swipeThreshold = 70;
+
+function isSwipeBlocked(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return true;
+  }
+
+  return Boolean(
+    target.closest(
+      'input, textarea, button, select, [role="button"], .modal-backdrop, .confirm-modal, .week-details-overlay, .week-details-sheet',
+    ),
+  );
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashLeaving, setIsSplashLeaving] = useState(false);
@@ -23,6 +38,7 @@ export default function App() {
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editReturnScreen, setEditReturnScreen] = useState<Screen>('history');
+  const swipeStartRef = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
 
   useEffect(() => {
     const leaveTimer = window.setTimeout(() => {
@@ -95,11 +111,59 @@ export default function App() {
     setReportStatus(result.statusMessage);
   }
 
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    swipeStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      blocked: isSwipeBlocked(event.target),
+    };
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const swipeStart = swipeStartRef.current;
+    swipeStartRef.current = null;
+
+    if (!swipeStart || swipeStart.blocked) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    const deltaX = touch.clientX - swipeStart.x;
+    const deltaY = touch.clientY - swipeStart.y;
+
+    if (Math.abs(deltaX) <= swipeThreshold || Math.abs(deltaX) <= Math.abs(deltaY) * 1.5) {
+      return;
+    }
+
+    const currentIndex = screenOrder.indexOf(screen);
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    const nextScreen = screenOrder[nextIndex];
+
+    if (nextScreen) {
+      handleNavigate(nextScreen);
+    }
+  }
+
   return (
     <>
       {showSplash ? <SplashScreen isLeaving={isSplashLeaving} /> : null}
 
-      <div className={`app-shell${showSplash ? ' app-shell--loading' : ' app-shell--ready'}`}>
+      <div
+        className={`app-shell${showSplash ? ' app-shell--loading' : ' app-shell--ready'}`}
+        onTouchEnd={handleTouchEnd}
+        onTouchStart={handleTouchStart}
+      >
         {screen === 'home' ? (
           <HomeScreen
             expenses={expenses}
