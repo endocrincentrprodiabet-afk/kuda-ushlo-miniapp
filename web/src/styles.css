@@ -639,8 +639,17 @@ h2 {
   min-height: 0;
   max-height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+.week-details-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .weekly-summary {
