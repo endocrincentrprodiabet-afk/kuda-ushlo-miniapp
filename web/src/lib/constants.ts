@@ -16,6 +16,10 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyLimit: 0,
   monthlyBudget: 0,
   savingsGoal: 0,
+  incomeFrequency: 'monthly',
+  availableNow: 0,
+  nextIncomeDate: new Date().toISOString().slice(0, 10),
+  regularIncomeAmount: 0,
   currency: 'RUB',
 };
 

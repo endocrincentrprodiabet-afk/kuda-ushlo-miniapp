@@ -1,5 +1,5 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
-import type { Expense, ExpenseCategory, ReserveClosure, Settings } from '../types';
+import type { Expense, ExpenseCategory, IncomeEntry, ReserveClosure, Settings } from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
@@ -28,6 +28,17 @@ export function getMonthExpenses(expenses: Expense[], date = new Date()): Expens
   });
 }
 
+export function getMonthIncomeEntries(incomeEntries: IncomeEntry[], date = new Date()): IncomeEntry[] {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  return incomeEntries.filter((entry) => {
+    const entryDate = new Date(`${entry.date}T00:00:00`);
+
+    return entryDate.getFullYear() === year && entryDate.getMonth() === month;
+  });
+}
+
 export function getDaysLeftInMonth(date = new Date()): number {
   const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 
@@ -42,11 +53,33 @@ export function getDaysInMonth(date = new Date()): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
 
-export function getMonthlySpendingLimit(settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>): number {
-  const monthlyBudget = Math.max(settings.monthlyBudget, 0);
-  const savingsGoal = Math.min(Math.max(settings.savingsGoal, 0), monthlyBudget);
+export function getWorkingBudget(
+  settings: Pick<Settings, 'availableNow' | 'monthlyBudget'>,
+  incomeEntries: IncomeEntry[] = [],
+  date = new Date(),
+): number {
+  const availableNow =
+    settings.availableNow === undefined ? Math.max(settings.monthlyBudget || 0, 0) : Math.max(settings.availableNow, 0);
+  const monthIncome = getMonthIncomeEntries(incomeEntries, date).reduce((total, entry) => total + entry.amount, 0);
 
-  return Math.max(monthlyBudget - savingsGoal, 0);
+  return availableNow + monthIncome;
+}
+
+export function getMonthlySpendingLimitFromWorkingBudget(workingBudget: number, savingsGoal: number): number {
+  const normalizedWorkingBudget = Math.max(workingBudget, 0);
+  const normalizedSavingsGoal = Math.min(Math.max(savingsGoal, 0), normalizedWorkingBudget);
+
+  return Math.max(normalizedWorkingBudget - normalizedSavingsGoal, 0);
+}
+
+export function getMonthlySpendingLimit(
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal' | 'availableNow'>,
+  incomeEntries: IncomeEntry[] = [],
+  date = new Date(),
+): number {
+  const workingBudget = getWorkingBudget(settings, incomeEntries, date);
+
+  return getMonthlySpendingLimitFromWorkingBudget(workingBudget, settings.savingsGoal);
 }
 
 export function getSpentBeforeToday(expenses: Expense[], date = new Date()): number {
@@ -62,8 +95,12 @@ export function getSpentBeforeToday(expenses: Expense[], date = new Date()): num
   );
 }
 
-export function getPlannedDailyTarget(settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>, date = new Date()): number {
-  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
+export function getPlannedDailyTargetFromWorkingBudget(
+  workingBudget: number,
+  savingsGoal: number,
+  date = new Date(),
+): number {
+  const monthlySpendingLimit = getMonthlySpendingLimitFromWorkingBudget(workingBudget, savingsGoal);
 
   if (monthlySpendingLimit <= 0) {
     return 0;
@@ -72,12 +109,24 @@ export function getPlannedDailyTarget(settings: Pick<Settings, 'monthlyBudget' |
   return monthlySpendingLimit / getDaysInMonth(date);
 }
 
-export function getCurrentDailyTarget(
-  expenses: Expense[],
-  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>,
+export function getPlannedDailyTarget(
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal' | 'availableNow'>,
+  incomeEntries: IncomeEntry[] = [],
   date = new Date(),
 ): number {
-  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
+  const workingBudget = getWorkingBudget(settings, incomeEntries, date);
+
+  return getPlannedDailyTargetFromWorkingBudget(workingBudget, settings.savingsGoal, date);
+}
+
+export function getCurrentDailyTarget(
+  expenses: Expense[],
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal' | 'availableNow'>,
+  incomeEntries: IncomeEntry[] = [],
+  date = new Date(),
+): number {
+  const workingBudget = getWorkingBudget(settings, incomeEntries, date);
+  const monthlySpendingLimit = getMonthlySpendingLimitFromWorkingBudget(workingBudget, settings.savingsGoal);
 
   if (monthlySpendingLimit <= 0) {
     return 0;
@@ -92,10 +141,11 @@ export function getCurrentDailyTarget(
 
 export function getAutoDailyTarget(
   expenses: Expense[],
-  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal'>,
+  settings: Pick<Settings, 'monthlyBudget' | 'savingsGoal' | 'availableNow'>,
+  incomeEntries: IncomeEntry[] = [],
   date = new Date(),
 ): number {
-  return getCurrentDailyTarget(expenses, settings, date);
+  return getCurrentDailyTarget(expenses, settings, incomeEntries, date);
 }
 
 export function getMonthlyBudgetStats(expenses: Expense[], monthlyBudget: number, date = new Date()) {

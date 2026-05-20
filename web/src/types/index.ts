@@ -22,7 +22,20 @@ export type Settings = {
   dailyLimit: number;
   monthlyBudget: number;
   savingsGoal: number;
+  incomeFrequency: 'monthly' | 'biweekly';
+  availableNow: number;
+  nextIncomeDate: string;
+  regularIncomeAmount: number;
   currency: 'RUB';
+};
+
+export type IncomeEntry = {
+  id: string;
+  amount: number;
+  date: string;
+  note: string;
+  type: 'salary' | 'extra';
+  createdAt: string;
 };
 
 export type ReserveGoal = {

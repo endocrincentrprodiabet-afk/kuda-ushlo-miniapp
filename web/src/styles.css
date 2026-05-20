@@ -1594,6 +1594,10 @@ input::placeholder {
   background: var(--surface-soft);
 }
 
+.segmented--two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .segmented button {
   min-height: 38px;
   background: transparent;
@@ -1644,6 +1648,96 @@ input::placeholder {
 
 .settings-plan__budget {
   padding-bottom: 1px;
+}
+
+.settings-income-hint,
+.income-schedule-note {
+  border: 1px solid var(--accent-line);
+  border-radius: 13px;
+  padding: 12px 13px;
+  background: rgba(45, 56, 12, 0.34);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.income-schedule-note {
+  display: grid;
+  gap: 5px;
+  border-color: var(--line-soft);
+  background: rgba(28, 34, 43, 0.56);
+}
+
+.income-schedule-note span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.income-schedule-note p {
+  color: var(--muted-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.income-entry-card,
+.income-list {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid rgba(245, 247, 250, 0.07);
+  padding-top: 18px;
+}
+
+.income-entry-card h3,
+.income-list h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.income-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  padding: 12px 0;
+}
+
+.income-list-item:first-of-type {
+  border-top: 0;
+}
+
+.income-list-item > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.income-list-item > div:last-child {
+  justify-items: end;
+}
+
+.income-list-item strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.income-list-item span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.settings-plan-metrics--top {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .savings-panel {

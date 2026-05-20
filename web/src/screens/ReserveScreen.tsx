@@ -8,14 +8,16 @@ import {
   getMonthExpenses,
   getReserveTotal,
   getSuggestedMonthlySavings,
+  getWorkingBudget,
   sumExpenses,
 } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
-import type { Expense, ReserveClosure, ReserveGoal, Settings } from '../types';
+import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
 
 type ReserveScreenProps = {
   expenses: Expense[];
   settings: Settings;
+  incomeEntries: IncomeEntry[];
   reserveGoal: ReserveGoal;
   reserveClosures: ReserveClosure[];
   onSaveReserveGoal: (goal: ReserveGoal) => void;
@@ -43,6 +45,7 @@ function formatProgressPercent(value: number): string {
 export function ReserveScreen({
   expenses,
   settings,
+  incomeEntries,
   reserveGoal,
   reserveClosures,
   onSaveReserveGoal,
@@ -56,9 +59,10 @@ export function ReserveScreen({
   const reserveTotal = getReserveTotal(reserveClosures);
   const currentMonthKey = getCurrentMonthKey();
   const currentMonthTotal = sumExpenses(getMonthExpenses(expenses));
-  const spendingLimit = getMonthlySpendingLimit(settings);
-  const actualSuggested = getSuggestedMonthlySavings(settings.monthlyBudget, currentMonthTotal);
-  const plannedSavings = Math.min(settings.savingsGoal, settings.monthlyBudget);
+  const workingBudget = getWorkingBudget(settings, incomeEntries);
+  const spendingLimit = getMonthlySpendingLimit(settings, incomeEntries);
+  const actualSuggested = getSuggestedMonthlySavings(workingBudget, currentMonthTotal);
+  const plannedSavings = Math.min(settings.savingsGoal, workingBudget);
   const currentClosure = reserveClosures.find((closure) => closure.month === currentMonthKey) ?? null;
   const progress = getGoalProgress(reserveTotal, reserveGoal.targetAmount);
   const cappedProgress = Math.min(100, Math.max(0, progress));
@@ -82,7 +86,7 @@ export function ReserveScreen({
         : 'По плану';
   const planInsightTone = planDiff > 0 ? 'positive' : planDiff < 0 ? 'negative' : 'neutral';
   const planInsightClassName = `reserve-fix-insight reserve-fix-insight--${planInsightTone}`;
-  const canCloseMonth = settings.monthlyBudget > 0;
+  const canCloseMonth = workingBudget > 0;
 
   useEffect(() => {
     setGoalTitle(reserveGoal.title);
@@ -125,7 +129,7 @@ export function ReserveScreen({
       month: currentMonthKey,
       plannedSavings,
       actualSaved,
-      monthlyBudget: settings.monthlyBudget,
+      monthlyBudget: workingBudget,
       monthTotal: currentMonthTotal,
       spendingLimit,
       confirmedAt,

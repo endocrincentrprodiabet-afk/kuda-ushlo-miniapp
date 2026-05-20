@@ -1,13 +1,15 @@
 import {
   getCategoryTotals,
   getCurrentDailyTarget,
+  getMonthlySpendingLimit,
   getTodayExpenses,
   getWeekExpenses,
+  getWorkingBudget,
   sortByCreatedAt,
   sumExpenses,
 } from './calculations';
 import { formatMoney } from './format';
-import type { Expense, Settings } from '../types';
+import type { Expense, IncomeEntry, Settings } from '../types';
 
 declare global {
   interface Window {
@@ -28,6 +30,10 @@ type TelegramReportPayload = {
   generatedAt: string;
   todayTotal: number;
   weekTotal: number;
+  monthlyBudget: number;
+  workingBudget: number;
+  savingsGoal: number;
+  spendingLimit: number;
   dailyLimit: number;
   dailyTarget: number;
   limitDiff: number;
@@ -58,12 +64,12 @@ function getTelegramWebApp(): TelegramWebApp | null {
   return webApp?.sendData ? webApp : null;
 }
 
-export function buildTelegramReport(expenses: Expense[], settings: Settings): string {
+export function buildTelegramReport(expenses: Expense[], settings: Settings, incomeEntries: IncomeEntry[] = []): string {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
-  const dailyTarget = getCurrentDailyTarget(expenses, settings);
+  const dailyTarget = getCurrentDailyTarget(expenses, settings, incomeEntries);
   const limitDiff = dailyTarget - todayTotal;
   const limitLine =
     limitDiff >= 0
@@ -86,11 +92,17 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings): st
   ].join('\n');
 }
 
-export function buildTelegramReportPayload(expenses: Expense[], settings: Settings): TelegramReportPayload {
+export function buildTelegramReportPayload(
+  expenses: Expense[],
+  settings: Settings,
+  incomeEntries: IncomeEntry[] = [],
+): TelegramReportPayload {
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
-  const dailyTarget = getCurrentDailyTarget(expenses, settings);
+  const workingBudget = getWorkingBudget(settings, incomeEntries);
+  const spendingLimit = getMonthlySpendingLimit(settings, incomeEntries);
+  const dailyTarget = getCurrentDailyTarget(expenses, settings, incomeEntries);
   const limitDiff = dailyTarget - todayTotal;
 
   return {
@@ -101,6 +113,10 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
     generatedAt: new Date().toISOString(),
     todayTotal,
     weekTotal,
+    monthlyBudget: workingBudget,
+    workingBudget,
+    savingsGoal: Math.min(settings.savingsGoal, workingBudget),
+    spendingLimit,
     dailyLimit: dailyTarget,
     dailyTarget,
     limitDiff,
@@ -120,9 +136,13 @@ export function buildTelegramReportPayload(expenses: Expense[], settings: Settin
   };
 }
 
-export function sendTelegramReport(expenses: Expense[], settings: Settings): SendTelegramReportResult {
-  const report = buildTelegramReport(expenses, settings);
-  const payload = buildTelegramReportPayload(expenses, settings);
+export function sendTelegramReport(
+  expenses: Expense[],
+  settings: Settings,
+  incomeEntries: IncomeEntry[] = [],
+): SendTelegramReportResult {
+  const report = buildTelegramReport(expenses, settings, incomeEntries);
+  const payload = buildTelegramReportPayload(expenses, settings, incomeEntries);
   const webApp = getTelegramWebApp();
 
   if (!webApp) {

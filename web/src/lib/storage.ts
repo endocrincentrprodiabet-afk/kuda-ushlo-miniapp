@@ -1,8 +1,10 @@
 import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS } from './constants';
-import type { Expense, ReserveClosure, ReserveGoal, Settings } from '../types';
+import { toDateInputValue } from './date';
+import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
 
 const EXPENSES_KEY = 'kuda-ushlo.expenses';
 const SETTINGS_KEY = 'kuda-ushlo.settings';
+const INCOME_ENTRIES_KEY = 'kuda-ushlo.incomeEntries';
 const RESERVE_GOAL_KEY = 'kuda-ushlo.reserveGoal';
 const RESERVE_CLOSURES_KEY = 'kuda-ushlo.reserveClosures';
 
@@ -24,23 +26,42 @@ export function saveExpenses(expenses: Expense[]): void {
 }
 
 export function loadSettings(): Settings {
+  const rawSettings = readJson<Partial<Settings>>(SETTINGS_KEY, DEFAULT_SETTINGS);
   const settings = {
     ...DEFAULT_SETTINGS,
-    ...readJson<Partial<Settings>>(SETTINGS_KEY, DEFAULT_SETTINGS),
+    ...rawSettings,
     currency: 'RUB' as const,
   };
+  const monthlyBudget = Math.max(0, Number(settings.monthlyBudget) || 0);
+  const availableNow =
+    rawSettings.availableNow === undefined ? monthlyBudget : Math.max(0, Number(settings.availableNow) || 0);
+  const incomeFrequency = settings.incomeFrequency === 'biweekly' ? 'biweekly' : 'monthly';
+  const nextIncomeDate =
+    typeof settings.nextIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.nextIncomeDate)
+      ? settings.nextIncomeDate
+      : toDateInputValue(new Date());
 
   return {
     ...settings,
     dailyLimit: 0,
-    monthlyBudget: Math.max(0, settings.monthlyBudget || 0),
-    savingsGoal: Math.min(Math.max(0, settings.savingsGoal || 0), Math.max(0, settings.monthlyBudget || 0)),
+    monthlyBudget,
+    incomeFrequency,
+    availableNow,
+    nextIncomeDate,
+    regularIncomeAmount: Math.max(0, Number(settings.regularIncomeAmount) || 0),
+    savingsGoal: Math.max(0, Number(settings.savingsGoal) || 0),
   };
 }
 
 export function saveSettings(settings: Settings): void {
-  const monthlyBudget = Math.max(0, settings.monthlyBudget || 0);
-  const savingsGoal = Math.min(Math.max(0, settings.savingsGoal || 0), monthlyBudget);
+  const availableNow = Math.max(0, Number(settings.availableNow) || 0);
+  const monthlyBudget = Math.max(0, Number(settings.monthlyBudget) || 0);
+  const savingsGoal = Math.max(0, Number(settings.savingsGoal) || 0);
+  const incomeFrequency = settings.incomeFrequency === 'biweekly' ? 'biweekly' : 'monthly';
+  const nextIncomeDate =
+    typeof settings.nextIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.nextIncomeDate)
+      ? settings.nextIncomeDate
+      : toDateInputValue(new Date());
 
   localStorage.setItem(
     SETTINGS_KEY,
@@ -48,10 +69,39 @@ export function saveSettings(settings: Settings): void {
       ...settings,
       dailyLimit: 0,
       monthlyBudget,
-      savingsGoal: monthlyBudget > 0 ? savingsGoal : 0,
+      incomeFrequency,
+      availableNow,
+      nextIncomeDate,
+      regularIncomeAmount: Math.max(0, Number(settings.regularIncomeAmount) || 0),
+      savingsGoal,
       currency: 'RUB' as const,
     }),
   );
+}
+
+function normalizeIncomeEntry(entry: Partial<IncomeEntry>): IncomeEntry | null {
+  if (!entry.id || !entry.date || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date)) {
+    return null;
+  }
+
+  return {
+    id: entry.id,
+    amount: Math.max(0, Number(entry.amount) || 0),
+    date: entry.date,
+    note: typeof entry.note === 'string' ? entry.note : '',
+    type: entry.type === 'salary' ? 'salary' : 'extra',
+    createdAt: entry.createdAt || new Date().toISOString(),
+  };
+}
+
+export function loadIncomeEntries(): IncomeEntry[] {
+  return readJson<Array<Partial<IncomeEntry>>>(INCOME_ENTRIES_KEY, [])
+    .map(normalizeIncomeEntry)
+    .filter((entry): entry is IncomeEntry => Boolean(entry));
+}
+
+export function saveIncomeEntries(entries: IncomeEntry[]): void {
+  localStorage.setItem(INCOME_ENTRIES_KEY, JSON.stringify(entries.map(normalizeIncomeEntry).filter(Boolean)));
 }
 
 export function loadReserveGoal(): ReserveGoal {
@@ -106,6 +156,7 @@ export function saveReserveClosures(closures: ReserveClosure[]): void {
 export function clearAllData(): void {
   localStorage.removeItem(EXPENSES_KEY);
   localStorage.removeItem(SETTINGS_KEY);
+  localStorage.removeItem(INCOME_ENTRIES_KEY);
   localStorage.removeItem(RESERVE_GOAL_KEY);
   localStorage.removeItem(RESERVE_CLOSURES_KEY);
 }

@@ -7,20 +7,22 @@ import {
   getCurrentDailyTarget,
   getCurrentWeekExpenses,
   getLargestCategory,
+  getMonthlyBudgetStats,
   getMonthlySpendingLimit,
   getMonthWeeklyBudgetStats,
-  getMonthlyBudgetStats,
   getTodayExpenses,
   getWeekExpenses,
+  getWorkingBudget,
   sortExpensesByDate,
   sumExpenses,
 } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
-import type { Expense, Screen, Settings } from '../types';
+import type { Expense, IncomeEntry, Screen, Settings } from '../types';
 
 type HomeScreenProps = {
   expenses: Expense[];
   settings: Settings;
+  incomeEntries: IncomeEntry[];
   onNavigate: (screen: Screen) => void;
   onSendReport: () => void;
   reportStatus: string;
@@ -65,29 +67,30 @@ function formatCompactMoney(amount: number): string {
   return Math.round(amount).toString();
 }
 
-export function HomeScreen({ expenses, settings, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
+export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const currentWeekTotal = sumExpenses(getCurrentWeekExpenses(expenses));
-  const monthlySpendingLimit = getMonthlySpendingLimit(settings);
-  const currentDailyTarget = getCurrentDailyTarget(expenses, settings);
+  const workingBudget = getWorkingBudget(settings, incomeEntries);
+  const monthlySpendingLimit = getMonthlySpendingLimit(settings, incomeEntries);
+  const currentDailyTarget = getCurrentDailyTarget(expenses, settings, incomeEntries);
   const monthlyStats = getMonthlyBudgetStats(expenses, monthlySpendingLimit);
-  const hasMonthlyBudget = settings.monthlyBudget > 0;
+  const hasWorkingBudget = workingBudget > 0;
   const hasMonthlySpendingLimit = monthlySpendingLimit > 0;
-  const isMonthOverBudget = hasMonthlyBudget && monthlyStats.monthTotal > monthlySpendingLimit;
+  const isMonthOverBudget = hasWorkingBudget && monthlyStats.monthTotal > monthlySpendingLimit;
   const budgetPercent = getBudgetUsagePercent(monthlyStats.monthTotal, monthlySpendingLimit);
   const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, monthlySpendingLimit);
   const selectedWeek = monthWeeklyStats.find((week) => week.index === selectedWeekIndex) ?? null;
-  const normalizedSavingsGoal = Math.min(settings.savingsGoal, settings.monthlyBudget);
-  const monthlyDynamicsCaption = hasMonthlyBudget
+  const normalizedSavingsGoal = Math.min(settings.savingsGoal, workingBudget);
+  const monthlyDynamicsCaption = hasWorkingBudget
     ? isMonthOverBudget
-      ? `Бюджет превышен на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
+      ? `На расходы превышено на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
       : hasMonthlySpendingLimit
         ? `${formatMoney(monthlyStats.monthTotal, settings.currency)} из ${formatMoney(monthlySpendingLimit, settings.currency)}`
-        : 'Лимит на расходы равен 0 ₽'
-    : 'Месячный бюджет не задан';
+        : 'На расходы сейчас 0 ₽'
+    : 'Настрой доходы, чтобы увидеть план месяца.';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentExpenses = sortExpensesByDate(expenses).slice(0, 4);
@@ -100,8 +103,8 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
       ? `Осталось на сегодня: ${formatMoney(limitDiff, settings.currency)}`
       : `Перерасход дня: ${formatMoney(Math.abs(limitDiff), settings.currency)}`
     : todayTotal > 0
-      ? 'Расходы есть, но месяц пока не настроен'
-      : 'Ориентир появится после настройки месяца';
+      ? 'Расходы есть, но доходы пока не настроены'
+      : 'Настрой доходы, чтобы увидеть план месяца.';
 
   return (
     <main className="screen">
@@ -128,7 +131,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
         </section>
       ) : null}
 
-      {hasMonthlyBudget ? (
+      {hasWorkingBudget ? (
         <section className={`month-budget-card ${isMonthOverBudget ? 'month-budget-card--over' : ''}`}>
           <div className="month-budget-head">
             <div>
@@ -148,9 +151,7 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
                 ? `На расходы: ${formatMoney(monthlySpendingLimit, settings.currency)}`
                 : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}
             </p>
-            {normalizedSavingsGoal > 0 ? (
-              <p>Отложено: {formatMoney(normalizedSavingsGoal, settings.currency)}</p>
-            ) : null}
+            {normalizedSavingsGoal > 0 ? <p>Отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p> : null}
           </div>
           {!isMonthOverBudget ? (
             <div className="month-budget-metric">
@@ -159,7 +160,11 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
             </div>
           ) : null}
         </section>
-      ) : null}
+      ) : (
+        <section className="card">
+          <p className="empty-state">Настрой доходы, чтобы увидеть план месяца.</p>
+        </section>
+      )}
 
       <div className="grid-two summary-grid">
         <section className="card">
@@ -171,39 +176,39 @@ export function HomeScreen({ expenses, settings, onNavigate, onSendReport, repor
           <strong>{formatMoney(monthlyStats.monthTotal, settings.currency)}</strong>
         </section>
         <section className={`card month-balance-card ${isMonthOverBudget ? 'month-balance-card--over' : ''}`}>
-            <div className="month-balance-head">
-              <span className="muted">Динамика месяца</span>
+          <div className="month-balance-head">
+            <span className="muted">Динамика месяца</span>
+          </div>
+          <div className="month-dynamics-main">
+            <div>
+              <strong>{formatProgressPercent(budgetPercent)}</strong>
+              <span>использовано</span>
             </div>
-            <div className="month-dynamics-main">
-              <div>
-                <strong>{formatProgressPercent(budgetPercent)}</strong>
-                <span>бюджета использовано</span>
-              </div>
-              <p>{monthlyDynamicsCaption}</p>
+            <p>{monthlyDynamicsCaption}</p>
+          </div>
+          <div className="month-balance-track" aria-hidden="true">
+            <span style={{ width: `${getProgressWidthPercent(budgetPercent)}%` }} />
+          </div>
+          <div className="month-weekly-chart">
+            <div className="month-weekly-chart__title">Расходы по неделям</div>
+            <div className="month-weekly-bars">
+              {monthWeeklyStats.map((week) => (
+                <button
+                  aria-label={`Открыть детали недели ${week.index}`}
+                  className={`month-weekly-bar ${week.isOverTarget ? 'month-weekly-bar--over' : ''}`}
+                  key={week.weekIndex}
+                  onClick={() => setSelectedWeekIndex(week.index)}
+                  type="button"
+                >
+                  <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
+                  <div className="month-weekly-bar__track">
+                    <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
+                  </div>
+                  <span className="month-weekly-bar__label">{week.weekIndex}</span>
+                </button>
+              ))}
             </div>
-            <div className="month-balance-track" aria-hidden="true">
-              <span style={{ width: `${getProgressWidthPercent(budgetPercent)}%` }} />
-            </div>
-            <div className="month-weekly-chart">
-              <div className="month-weekly-chart__title">Расходы по неделям</div>
-              <div className="month-weekly-bars">
-                {monthWeeklyStats.map((week) => (
-                  <button
-                    aria-label={`Открыть детали недели ${week.index}`}
-                    className={`month-weekly-bar ${week.isOverTarget ? 'month-weekly-bar--over' : ''}`}
-                    key={week.weekIndex}
-                    onClick={() => setSelectedWeekIndex(week.index)}
-                    type="button"
-                  >
-                    <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
-                    <div className="month-weekly-bar__track">
-                      <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
-                    </div>
-                    <span className="month-weekly-bar__label">{week.weekIndex}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          </div>
         </section>
       </div>
 

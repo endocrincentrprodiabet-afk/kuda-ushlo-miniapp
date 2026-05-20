@@ -11,17 +11,19 @@ import { formatDate } from './lib/date';
 import { formatMoney } from './lib/format';
 import {
   clearAllData,
+  loadIncomeEntries,
   loadExpenses,
   loadReserveClosures,
   loadReserveGoal,
   loadSettings,
   saveExpenses,
+  saveIncomeEntries,
   saveReserveClosures,
   saveReserveGoal,
   saveSettings,
 } from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
-import type { Expense, HistoryFilter, ReserveClosure, ReserveGoal, Screen, Settings } from './types';
+import type { Expense, HistoryFilter, IncomeEntry, ReserveClosure, ReserveGoal, Screen, Settings } from './types';
 
 const screenOrder: Screen[] = ['home', 'add', 'history', 'reserve', 'settings'];
 const swipeThreshold = 70;
@@ -44,6 +46,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>(() => loadIncomeEntries());
   const [reserveGoal, setReserveGoal] = useState<ReserveGoal>(() => loadReserveGoal());
   const [reserveClosures, setReserveClosures] = useState<ReserveClosure[]>(() => loadReserveClosures());
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
@@ -74,6 +77,10 @@ export default function App() {
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    saveIncomeEntries(incomeEntries);
+  }, [incomeEntries]);
 
   useEffect(() => {
     saveReserveGoal(reserveGoal);
@@ -124,13 +131,14 @@ export default function App() {
     clearAllData();
     setExpenses([]);
     setSettings(DEFAULT_SETTINGS);
+    setIncomeEntries([]);
     setReserveGoal(DEFAULT_RESERVE_GOAL);
     setReserveClosures([]);
     setReportStatus('');
   }
 
   function handleSendReport() {
-    const result = sendTelegramReport(expenses, settings);
+    const result = sendTelegramReport(expenses, settings, incomeEntries);
     setReportStatus(result.statusMessage);
   }
 
@@ -191,6 +199,7 @@ export default function App() {
           <HomeScreen
             expenses={expenses}
             settings={settings}
+            incomeEntries={incomeEntries}
             onNavigate={handleNavigate}
             onSendReport={handleSendReport}
             reportStatus={reportStatus}
@@ -221,7 +230,9 @@ export default function App() {
         {screen === 'settings' ? (
           <SettingsScreen
             settings={settings}
+            incomeEntries={incomeEntries}
             onSaveSettings={setSettings}
+            onSaveIncomeEntries={setIncomeEntries}
             onClearData={handleClearData}
           />
         ) : null}
@@ -230,6 +241,7 @@ export default function App() {
           <ReserveScreen
             expenses={expenses}
             settings={settings}
+            incomeEntries={incomeEntries}
             reserveGoal={reserveGoal}
             reserveClosures={reserveClosures}
             onSaveReserveGoal={setReserveGoal}
