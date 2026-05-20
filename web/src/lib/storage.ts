@@ -17,6 +17,13 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
+function addDays(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + days);
+
+  return toDateInputValue(date);
+}
+
 export function loadExpenses(): Expense[] {
   return readJson<Expense[]>(EXPENSES_KEY, []);
 }
@@ -40,6 +47,10 @@ export function loadSettings(): Settings {
     typeof settings.nextIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.nextIncomeDate)
       ? settings.nextIncomeDate
       : toDateInputValue(new Date());
+  const secondIncomeDate =
+    typeof settings.secondIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.secondIncomeDate)
+      ? settings.secondIncomeDate
+      : addDays(nextIncomeDate, 14);
 
   return {
     ...settings,
@@ -48,6 +59,7 @@ export function loadSettings(): Settings {
     incomeFrequency,
     availableNow,
     nextIncomeDate,
+    secondIncomeDate,
     regularIncomeAmount: Math.max(0, Number(settings.regularIncomeAmount) || 0),
     savingsGoal: Math.max(0, Number(settings.savingsGoal) || 0),
   };
@@ -62,6 +74,10 @@ export function saveSettings(settings: Settings): void {
     typeof settings.nextIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.nextIncomeDate)
       ? settings.nextIncomeDate
       : toDateInputValue(new Date());
+  const secondIncomeDate =
+    typeof settings.secondIncomeDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.secondIncomeDate)
+      ? settings.secondIncomeDate
+      : addDays(nextIncomeDate, 14);
 
   localStorage.setItem(
     SETTINGS_KEY,
@@ -72,6 +88,7 @@ export function saveSettings(settings: Settings): void {
       incomeFrequency,
       availableNow,
       nextIncomeDate,
+      secondIncomeDate,
       regularIncomeAmount: Math.max(0, Number(settings.regularIncomeAmount) || 0),
       savingsGoal,
       currency: 'RUB' as const,
@@ -84,12 +101,21 @@ function normalizeIncomeEntry(entry: Partial<IncomeEntry>): IncomeEntry | null {
     return null;
   }
 
+  const kind =
+    entry.kind === 'salary' || entry.kind === 'bonus' || entry.kind === 'side' || entry.kind === 'other'
+      ? entry.kind
+      : entry.type === 'salary'
+        ? 'salary'
+        : undefined;
+
   return {
     id: entry.id,
     amount: Math.max(0, Number(entry.amount) || 0),
     date: entry.date,
     note: typeof entry.note === 'string' ? entry.note : '',
-    type: entry.type === 'salary' ? 'salary' : 'extra',
+    type: entry.type === 'salary' || entry.type === 'manual' ? entry.type : 'extra',
+    kind,
+    source: entry.source === 'auto' ? 'auto' : 'manual',
     createdAt: entry.createdAt || new Date().toISOString(),
   };
 }

@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   incomeFrequency: 'monthly',
   availableNow: 0,
   nextIncomeDate: new Date().toISOString().slice(0, 10),
+  secondIncomeDate: new Date().toISOString().slice(0, 10),
   regularIncomeAmount: 0,
   currency: 'RUB',
 };

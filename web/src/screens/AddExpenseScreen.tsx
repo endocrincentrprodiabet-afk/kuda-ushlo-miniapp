@@ -1,37 +1,69 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { CATEGORIES } from '../lib/constants';
 import { toDateInputValue } from '../lib/date';
-import type { Expense, ExpenseCategory, Screen } from '../types';
+import type { Expense, ExpenseCategory, IncomeEntry, Screen } from '../types';
 
 type AddExpenseScreenProps = {
   onAddExpense: (expense: Expense) => void;
+  onAddIncomeEntry: (entry: IncomeEntry) => void;
   onUpdateExpense: (expense: Expense) => void;
+  onUpdateIncomeEntry: (entry: IncomeEntry) => void;
   onNavigate: (screen: Screen) => void;
   editExpense?: Expense | null;
+  editIncomeEntry?: IncomeEntry | null;
+  initialMode?: OperationMode;
   returnScreen?: Screen;
 };
 
+type OperationMode = 'expense' | 'income';
+type ManualIncomeKind = 'salary' | 'bonus' | 'side' | 'other';
+
+const incomeKindLabels: Record<ManualIncomeKind, string> = {
+  salary: 'Зарплата',
+  bonus: 'Премия',
+  side: 'Подработка',
+  other: 'Другое',
+};
+
+function getIncomeKind(entry?: IncomeEntry | null): ManualIncomeKind {
+  if (entry?.kind === 'salary' || entry?.kind === 'bonus' || entry?.kind === 'side' || entry?.kind === 'other') {
+    return entry.kind;
+  }
+
+  return entry?.type === 'salary' ? 'salary' : 'other';
+}
+
 export function AddExpenseScreen({
   onAddExpense,
+  onAddIncomeEntry,
   onUpdateExpense,
+  onUpdateIncomeEntry,
   onNavigate,
   editExpense,
+  editIncomeEntry,
+  initialMode = 'expense',
   returnScreen = 'home',
 }: AddExpenseScreenProps) {
-  const isEditMode = Boolean(editExpense);
-  const [amount, setAmount] = useState(editExpense ? String(editExpense.amount) : '');
-  const [category, setCategory] = useState<ExpenseCategory>(editExpense?.category ?? 'Еда');
-  const [note, setNote] = useState(editExpense?.note ?? '');
-  const [date, setDate] = useState(editExpense?.date ?? toDateInputValue(new Date()));
+  const isExpenseEditMode = Boolean(editExpense);
+  const isIncomeEditMode = Boolean(editIncomeEntry);
+  const isEditMode = isExpenseEditMode || isIncomeEditMode;
+  const [operationMode, setOperationMode] = useState<OperationMode>(editIncomeEntry ? 'income' : initialMode);
+  const [amount, setAmount] = useState(editExpense ? String(editExpense.amount) : editIncomeEntry ? String(editIncomeEntry.amount) : '');
+  const [category, setCategory] = useState<ExpenseCategory>(editExpense?.category ?? CATEGORIES[0]);
+  const [incomeKind, setIncomeKind] = useState<ManualIncomeKind>(getIncomeKind(editIncomeEntry));
+  const [note, setNote] = useState(editExpense?.note ?? editIncomeEntry?.note ?? '');
+  const [date, setDate] = useState(editExpense?.date ?? editIncomeEntry?.date ?? toDateInputValue(new Date()));
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setAmount(editExpense ? String(editExpense.amount) : '');
-    setCategory(editExpense?.category ?? 'Еда');
-    setNote(editExpense?.note ?? '');
-    setDate(editExpense?.date ?? toDateInputValue(new Date()));
+    setAmount(editExpense ? String(editExpense.amount) : editIncomeEntry ? String(editIncomeEntry.amount) : '');
+    setCategory(editExpense?.category ?? CATEGORIES[0]);
+    setOperationMode(editIncomeEntry ? 'income' : editExpense ? 'expense' : initialMode);
+    setIncomeKind(getIncomeKind(editIncomeEntry));
+    setNote(editExpense?.note ?? editIncomeEntry?.note ?? '');
+    setDate(editExpense?.date ?? editIncomeEntry?.date ?? toDateInputValue(new Date()));
     setError('');
-  }, [editExpense]);
+  }, [editExpense, editIncomeEntry, initialMode]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,24 +74,55 @@ export function AddExpenseScreen({
       return;
     }
 
-    const normalizedExpense: Expense = {
-      id: editExpense?.id ?? crypto.randomUUID(),
-      amount: Math.round(parsedAmount * 100) / 100,
-      category,
-      note: note.trim(),
-      date,
-      createdAt: editExpense?.createdAt ?? new Date().toISOString(),
-    };
+    const normalizedAmount = Math.round(parsedAmount * 100) / 100;
 
     if (editExpense) {
-      onUpdateExpense(normalizedExpense);
+      onUpdateExpense({
+        id: editExpense.id,
+        amount: normalizedAmount,
+        category,
+        note: note.trim(),
+        date,
+        createdAt: editExpense.createdAt,
+      });
+    } else if (editIncomeEntry) {
+      onUpdateIncomeEntry({
+        id: editIncomeEntry.id,
+        amount: normalizedAmount,
+        date,
+        note: note.trim() || incomeKindLabels[incomeKind],
+        type: incomeKind === 'salary' ? 'salary' : 'extra',
+        kind: incomeKind,
+        source: editIncomeEntry.source ?? 'manual',
+        createdAt: editIncomeEntry.createdAt,
+      });
+    } else if (operationMode === 'income') {
+      onAddIncomeEntry({
+        id: `income-${crypto.randomUUID()}`,
+        amount: normalizedAmount,
+        date,
+        note: note.trim() || incomeKindLabels[incomeKind],
+        type: incomeKind === 'salary' ? 'salary' : 'extra',
+        kind: incomeKind,
+        source: 'manual',
+        createdAt: new Date().toISOString(),
+      });
     } else {
-      onAddExpense(normalizedExpense);
+      onAddExpense({
+        id: crypto.randomUUID(),
+        amount: normalizedAmount,
+        category,
+        note: note.trim(),
+        date,
+        createdAt: new Date().toISOString(),
+      });
     }
 
     setAmount('');
     setNote('');
     setDate(toDateInputValue(new Date()));
+    setOperationMode('expense');
+    setIncomeKind('salary');
     setError('');
     onNavigate(isEditMode ? returnScreen : 'home');
   }
@@ -69,11 +132,30 @@ export function AddExpenseScreen({
       <header className="top-header">
         <div>
           <p className="subtitle">{isEditMode ? 'Редактирование записи' : 'Новая запись'}</p>
-          <h1>{isEditMode ? 'Редактировать расход' : 'Добавить расход'}</h1>
+          <h1>{isIncomeEditMode ? 'Редактировать начисление' : isExpenseEditMode ? 'Редактировать расход' : 'Добавить операцию'}</h1>
         </div>
       </header>
 
       <form className="form-card" onSubmit={handleSubmit}>
+        {!isEditMode ? (
+          <div className="segmented segmented--two operation-segmented" role="tablist" aria-label="Тип операции">
+            <button
+              className={operationMode === 'expense' ? 'active' : ''}
+              onClick={() => setOperationMode('expense')}
+              type="button"
+            >
+              Расход
+            </button>
+            <button
+              className={operationMode === 'income' ? 'active' : ''}
+              onClick={() => setOperationMode('income')}
+              type="button"
+            >
+              Начисление
+            </button>
+          </div>
+        ) : null}
+
         <label className="amount-field">
           <span>Сумма</span>
           <input
@@ -86,21 +168,39 @@ export function AddExpenseScreen({
           />
         </label>
 
-        <fieldset>
-          <legend>Категория</legend>
-          <div className="chips">
-            {CATEGORIES.map((item) => (
-              <button
-                className={item === category ? 'chip active' : 'chip'}
-                key={item}
-                onClick={() => setCategory(item)}
-                type="button"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        {operationMode === 'expense' && !isIncomeEditMode ? (
+          <fieldset>
+            <legend>Категория</legend>
+            <div className="chips">
+              {CATEGORIES.map((item) => (
+                <button
+                  className={item === category ? 'chip active' : 'chip'}
+                  key={item}
+                  onClick={() => setCategory(item)}
+                  type="button"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ) : (
+          <fieldset>
+            <legend>Тип начисления</legend>
+            <div className="chips">
+              {(Object.keys(incomeKindLabels) as ManualIncomeKind[]).map((item) => (
+                <button
+                  className={item === incomeKind ? 'chip active' : 'chip'}
+                  key={item}
+                  onClick={() => setIncomeKind(item)}
+                  type="button"
+                >
+                  {incomeKindLabels[item]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <label>
           <span>Комментарий</span>
@@ -115,7 +215,7 @@ export function AddExpenseScreen({
         {error ? <p className="form-error">{error}</p> : null}
 
         <button className="primary-button" type="submit">
-          {isEditMode ? 'Сохранить изменения' : 'Сохранить'}
+          {isEditMode ? 'Сохранить изменения' : operationMode === 'income' ? 'Сохранить начисление' : 'Сохранить'}
         </button>
       </form>
     </main>

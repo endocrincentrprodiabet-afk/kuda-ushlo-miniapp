@@ -32,6 +32,7 @@ type TelegramReportPayload = {
   weekTotal: number;
   monthlyBudget: number;
   workingBudget: number;
+  incomeTotal: number;
   savingsGoal: number;
   spendingLimit: number;
   dailyLimit: number;
@@ -101,6 +102,7 @@ export function buildTelegramReportPayload(
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
   const workingBudget = getWorkingBudget(settings, incomeEntries);
+  const incomeTotal = workingBudget - Math.max(settings.availableNow, 0);
   const spendingLimit = getMonthlySpendingLimit(settings, incomeEntries);
   const dailyTarget = getCurrentDailyTarget(expenses, settings, incomeEntries);
   const limitDiff = dailyTarget - todayTotal;
@@ -115,6 +117,7 @@ export function buildTelegramReportPayload(
     weekTotal,
     monthlyBudget: workingBudget,
     workingBudget,
+    incomeTotal,
     savingsGoal: Math.min(settings.savingsGoal, workingBudget),
     spendingLimit,
     dailyLimit: dailyTarget,

@@ -25,6 +25,7 @@ export type Settings = {
   incomeFrequency: 'monthly' | 'biweekly';
   availableNow: number;
   nextIncomeDate: string;
+  secondIncomeDate: string;
   regularIncomeAmount: number;
   currency: 'RUB';
 };
@@ -34,7 +35,9 @@ export type IncomeEntry = {
   amount: number;
   date: string;
   note: string;
-  type: 'salary' | 'extra';
+  type: 'salary' | 'extra' | 'manual';
+  kind?: 'salary' | 'bonus' | 'side' | 'other';
+  source?: 'auto' | 'manual';
   createdAt: string;
 };
 

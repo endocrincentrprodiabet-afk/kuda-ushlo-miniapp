@@ -23,6 +23,7 @@ import {
   saveSettings,
 } from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
+import { applyAutoIncomeEntries } from './lib/incomeSchedule';
 import type { Expense, HistoryFilter, IncomeEntry, ReserveClosure, ReserveGoal, Screen, Settings } from './types';
 
 const screenOrder: Screen[] = ['home', 'add', 'history', 'reserve', 'settings'];
@@ -52,7 +53,10 @@ export default function App() {
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [incomeEntryToDelete, setIncomeEntryToDelete] = useState<IncomeEntry | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingIncomeEntry, setEditingIncomeEntry] = useState<IncomeEntry | null>(null);
+  const [addScreenMode, setAddScreenMode] = useState<'expense' | 'income'>('expense');
   const [editReturnScreen, setEditReturnScreen] = useState<Screen>('history');
   const swipeStartRef = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
 
@@ -83,6 +87,20 @@ export default function App() {
   }, [incomeEntries]);
 
   useEffect(() => {
+    setIncomeEntries((current) => {
+      const nextEntries = applyAutoIncomeEntries(settings, current);
+
+      return nextEntries === current ? current : nextEntries;
+    });
+  }, [
+    settings.incomeFrequency,
+    settings.nextIncomeDate,
+    settings.secondIncomeDate,
+    settings.regularIncomeAmount,
+    screen,
+  ]);
+
+  useEffect(() => {
     saveReserveGoal(reserveGoal);
   }, [reserveGoal]);
 
@@ -94,13 +112,26 @@ export default function App() {
     setExpenses((current) => [expense, ...current]);
   }
 
+  function handleAddIncomeEntry(entry: IncomeEntry) {
+    setIncomeEntries((current) => [entry, ...current]);
+  }
+
   function handleUpdateExpense(expense: Expense) {
     setExpenses((current) => current.map((item) => (item.id === expense.id ? expense : item)));
     setEditingExpense(null);
   }
 
+  function handleUpdateIncomeEntry(entry: IncomeEntry) {
+    setIncomeEntries((current) => current.map((item) => (item.id === entry.id ? entry : item)));
+    setEditingIncomeEntry(null);
+  }
+
   function handleRequestDeleteExpense(id: string) {
     setExpenseToDelete(expenses.find((expense) => expense.id === id) ?? null);
+  }
+
+  function handleRequestDeleteIncomeEntry(id: string) {
+    setIncomeEntryToDelete(incomeEntries.find((entry) => entry.id === id) ?? null);
   }
 
   function handleConfirmDeleteExpense() {
@@ -113,15 +144,46 @@ export default function App() {
     setExpenseToDelete(null);
   }
 
+  function handleConfirmDeleteIncomeEntry() {
+    if (!incomeEntryToDelete) {
+      return;
+    }
+
+    const id = incomeEntryToDelete.id;
+    setIncomeEntries((current) => current.filter((entry) => entry.id !== id));
+    setIncomeEntryToDelete(null);
+  }
+
   function handleEditExpense(expense: Expense) {
     setEditingExpense(expense);
+    setEditingIncomeEntry(null);
     setEditReturnScreen('history');
+    setScreen('add');
+  }
+
+  function handleEditIncomeEntry(entry: IncomeEntry) {
+    setEditingIncomeEntry(entry);
+    setEditingExpense(null);
+    setAddScreenMode('income');
+    setEditReturnScreen('history');
+    setScreen('add');
+  }
+
+  function handleOpenAddIncome() {
+    setEditingExpense(null);
+    setEditingIncomeEntry(null);
+    setAddScreenMode('income');
     setScreen('add');
   }
 
   function handleNavigate(nextScreen: Screen) {
     if (nextScreen !== 'add') {
       setEditingExpense(null);
+      setEditingIncomeEntry(null);
+    }
+
+    if (nextScreen === 'add' && screen !== 'add' && !editingExpense && !editingIncomeEntry) {
+      setAddScreenMode('expense');
     }
 
     setScreen(nextScreen);
@@ -209,8 +271,12 @@ export default function App() {
         {screen === 'add' ? (
           <AddExpenseScreen
             editExpense={editingExpense}
+            editIncomeEntry={editingIncomeEntry}
+            initialMode={addScreenMode}
             onAddExpense={handleAddExpense}
+            onAddIncomeEntry={handleAddIncomeEntry}
             onUpdateExpense={handleUpdateExpense}
+            onUpdateIncomeEntry={handleUpdateIncomeEntry}
             onNavigate={handleNavigate}
             returnScreen={editReturnScreen}
           />
@@ -219,11 +285,14 @@ export default function App() {
         {screen === 'history' ? (
           <HistoryScreen
             expenses={expenses}
+            incomeEntries={incomeEntries}
             settings={settings}
             filter={historyFilter}
             onFilterChange={setHistoryFilter}
             onDeleteExpense={handleRequestDeleteExpense}
             onEditExpense={handleEditExpense}
+            onDeleteIncomeEntry={handleRequestDeleteIncomeEntry}
+            onEditIncomeEntry={handleEditIncomeEntry}
           />
         ) : null}
 
@@ -232,7 +301,7 @@ export default function App() {
             settings={settings}
             incomeEntries={incomeEntries}
             onSaveSettings={setSettings}
-            onSaveIncomeEntries={setIncomeEntries}
+            onOpenAddIncome={handleOpenAddIncome}
             onClearData={handleClearData}
           />
         ) : null}
@@ -285,6 +354,42 @@ export default function App() {
                 Отмена
               </button>
               <button className="danger-button" onClick={handleConfirmDeleteExpense} type="button">
+                Удалить
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {incomeEntryToDelete ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-income-title">
+            <div className="confirm-modal__head">
+              <p className="subtitle">Подтверждение</p>
+              <h2 id="delete-income-title">Удалить начисление?</h2>
+            </div>
+            <div className="confirm-modal__expense">
+              <div>
+                <span>Сумма</span>
+                <strong>+{formatMoney(incomeEntryToDelete.amount, settings.currency)}</strong>
+              </div>
+              {incomeEntryToDelete.note ? (
+                <div>
+                  <span>Комментарий</span>
+                  <strong>{incomeEntryToDelete.note}</strong>
+                </div>
+              ) : null}
+              <div>
+                <span>Дата</span>
+                <strong>{formatDate(incomeEntryToDelete.date)}</strong>
+              </div>
+            </div>
+            <p className="confirm-modal__warning">Это действие нельзя отменить.</p>
+            <div className="confirm-modal__actions">
+              <button className="secondary-button" onClick={() => setIncomeEntryToDelete(null)} type="button">
+                Отмена
+              </button>
+              <button className="danger-button" onClick={handleConfirmDeleteIncomeEntry} type="button">
                 Удалить
               </button>
             </div>

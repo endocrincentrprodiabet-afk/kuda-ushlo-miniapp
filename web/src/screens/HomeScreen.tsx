@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { ExpenseList } from '../components/ExpenseList';
 import { WeekDetailsSheet } from '../components/WeekDetailsSheet';
 import {
   getBudgetUsagePercent,
@@ -13,9 +12,9 @@ import {
   getTodayExpenses,
   getWeekExpenses,
   getWorkingBudget,
-  sortExpensesByDate,
   sumExpenses,
 } from '../lib/calculations';
+import { formatDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
 import type { Expense, IncomeEntry, Screen, Settings } from '../types';
 
@@ -67,6 +66,42 @@ function formatCompactMoney(amount: number): string {
   return Math.round(amount).toString();
 }
 
+type RecentOperation =
+  | {
+      id: string;
+      kind: 'expense';
+      title: string;
+      note: string;
+      amount: number;
+      date: string;
+      createdAt: string;
+    }
+  | {
+      id: string;
+      kind: 'income';
+      title: string;
+      note: string;
+      amount: number;
+      date: string;
+      createdAt: string;
+    };
+
+function getIncomeOperationTitle(entry: IncomeEntry): string {
+  return entry.type === 'salary' ? 'Зарплата' : 'Начисление';
+}
+
+function sortOperationsByDate(operations: RecentOperation[]): RecentOperation[] {
+  return [...operations].sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
 export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
@@ -93,7 +128,30 @@ export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSe
     : 'Настрой доходы, чтобы увидеть план месяца.';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
-  const recentExpenses = sortExpensesByDate(expenses).slice(0, 4);
+  const recentOperations = sortOperationsByDate([
+    ...expenses.map(
+      (expense): RecentOperation => ({
+        id: expense.id,
+        kind: 'expense',
+        title: expense.category,
+        note: expense.note || 'Без комментария',
+        amount: expense.amount,
+        date: expense.date,
+        createdAt: expense.createdAt,
+      }),
+    ),
+    ...incomeEntries.map(
+      (entry): RecentOperation => ({
+        id: entry.id,
+        kind: 'income',
+        title: getIncomeOperationTitle(entry),
+        note: entry.note || 'Начисление',
+        amount: entry.amount,
+        date: entry.date,
+        createdAt: entry.createdAt,
+      }),
+    ),
+  ]).slice(0, 4);
   const limitDiff = currentDailyTarget - todayTotal;
   const hasDailyTarget = currentDailyTarget > 0;
   const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';
@@ -238,12 +296,34 @@ export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSe
 
       <section className="card">
         <div className="section-title">
-          <h2>Последние расходы</h2>
+          <h2>Последние операции</h2>
           <button className="text-button" onClick={() => onNavigate('history')} type="button">
             Все
           </button>
         </div>
-        <ExpenseList expenses={recentExpenses} currency={settings.currency} emptyText="Расходов пока нет" />
+        {recentOperations.length ? (
+          <div className="expense-list">
+            {recentOperations.map((operation) => (
+              <article className={`expense-item operation-item operation-item--${operation.kind}`} key={operation.id}>
+                <div className="expense-content">
+                  <div className="expense-head">
+                    <strong className="expense-category">{operation.title}</strong>
+                    <strong className={`expense-amount${operation.kind === 'income' ? ' expense-amount--income' : ''}`}>
+                      {operation.kind === 'income' ? '+' : ''}
+                      {formatMoney(operation.amount, settings.currency)}
+                    </strong>
+                  </div>
+                  <div className="expense-meta">
+                    <span>{operation.note}</span>
+                    <span>{formatDate(operation.date)}</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">Операций пока нет</p>
+        )}
       </section>
 
       <div className="actions">

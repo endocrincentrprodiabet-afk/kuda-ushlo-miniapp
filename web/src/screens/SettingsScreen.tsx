@@ -1,8 +1,7 @@
-import { CSSProperties, FormEvent, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import {
-  getMonthIncomeEntries,
   getMonthlySpendingLimitFromWorkingBudget,
   getPlannedDailyTargetFromWorkingBudget,
   getWorkingBudget,
@@ -15,7 +14,7 @@ type SettingsScreenProps = {
   settings: Settings;
   incomeEntries: IncomeEntry[];
   onSaveSettings: (settings: Settings) => void;
-  onSaveIncomeEntries: (entries: IncomeEntry[]) => void;
+  onOpenAddIncome: () => void;
   onClearData: () => void;
 };
 
@@ -48,17 +47,18 @@ function addMonths(value: string, months: number): string {
   return toDateInputValue(date);
 }
 
-function addDays(value: string, days: number): string {
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + days);
+function getNextIncomeAfter(settings: Pick<Settings, 'incomeFrequency' | 'nextIncomeDate' | 'secondIncomeDate'>): string {
+  if (settings.incomeFrequency !== 'biweekly') {
+    return addMonths(settings.nextIncomeDate, 1);
+  }
 
-  return toDateInputValue(date);
-}
+  let candidate = addMonths(settings.nextIncomeDate, 1);
 
-function getNextIncomeAfter(settings: Pick<Settings, 'incomeFrequency' | 'nextIncomeDate'>): string {
-  return settings.incomeFrequency === 'biweekly'
-    ? addDays(settings.nextIncomeDate, 14)
-    : addMonths(settings.nextIncomeDate, 1);
+  while (candidate <= settings.secondIncomeDate) {
+    candidate = addMonths(candidate, 1);
+  }
+
+  return candidate;
 }
 
 function getSavingsWarningContent(savingsGoal: number, workingBudget: number): { title: string; text: string } {
@@ -88,18 +88,15 @@ export function SettingsScreen({
   settings,
   incomeEntries,
   onSaveSettings,
-  onSaveIncomeEntries,
+  onOpenAddIncome,
   onClearData,
 }: SettingsScreenProps) {
   const [availableNow, setAvailableNow] = useState(String(settings.availableNow || ''));
   const [incomeFrequency, setIncomeFrequency] = useState<Settings['incomeFrequency']>(settings.incomeFrequency);
   const [nextIncomeDate, setNextIncomeDate] = useState(settings.nextIncomeDate);
+  const [secondIncomeDate, setSecondIncomeDate] = useState(settings.secondIncomeDate);
   const [regularIncomeAmount, setRegularIncomeAmount] = useState(String(settings.regularIncomeAmount || ''));
   const [savingsGoal, setSavingsGoal] = useState(settings.savingsGoal);
-  const [incomeAmount, setIncomeAmount] = useState('');
-  const [incomeNote, setIncomeNote] = useState('');
-  const [incomeDate, setIncomeDate] = useState(toDateInputValue(new Date()));
-  const [incomeToDelete, setIncomeToDelete] = useState<IncomeEntry | null>(null);
   const [saved, setSaved] = useState(false);
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [clearConfirmationText, setClearConfirmationText] = useState('');
@@ -117,6 +114,7 @@ export function SettingsScreen({
     availableNow: parsedAvailableNow,
     incomeFrequency,
     nextIncomeDate,
+    secondIncomeDate,
     regularIncomeAmount: parsedRegularIncomeAmount,
     savingsGoal,
     currency: 'RUB',
@@ -126,10 +124,6 @@ export function SettingsScreen({
   const monthlySpendingLimit = getMonthlySpendingLimitFromWorkingBudget(workingBudget, clampedSavingsGoal);
   const plannedDailyTarget = getPlannedDailyTargetFromWorkingBudget(workingBudget, clampedSavingsGoal);
   const savingsPercent = workingBudget > 0 ? (clampedSavingsGoal / workingBudget) * 100 : 0;
-  const currentMonthIncomeEntries = useMemo(
-    () => getMonthIncomeEntries(incomeEntries).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
-    [incomeEntries],
-  );
   const nextIncomeAfter = getNextIncomeAfter(previewSettings);
   const savingsWarningContent = pendingSettings
     ? getSavingsWarningContent(pendingSettings.savingsGoal, getWorkingBudget(pendingSettings, incomeEntries))
@@ -140,12 +134,14 @@ export function SettingsScreen({
     setAvailableNow(String(settings.availableNow || ''));
     setIncomeFrequency(settings.incomeFrequency);
     setNextIncomeDate(settings.nextIncomeDate);
+    setSecondIncomeDate(settings.secondIncomeDate);
     setRegularIncomeAmount(String(settings.regularIncomeAmount || ''));
     setSavingsGoal(settings.savingsGoal);
   }, [
     settings.availableNow,
     settings.incomeFrequency,
     settings.nextIncomeDate,
+    settings.secondIncomeDate,
     settings.regularIncomeAmount,
     settings.savingsGoal,
   ]);
@@ -192,39 +188,6 @@ export function SettingsScreen({
     }
 
     commitSettings(nextSettings);
-  }
-
-  function handleAddIncomeEntry() {
-    const amount = parseMoneyInput(incomeAmount);
-
-    if (amount <= 0) {
-      return;
-    }
-
-    const entry: IncomeEntry = {
-      id: `income-${Date.now()}`,
-      amount,
-      date: incomeDate || toDateInputValue(new Date()),
-      note: incomeNote.trim(),
-      type: 'extra',
-      createdAt: new Date().toISOString(),
-    };
-
-    onSaveIncomeEntries([entry, ...incomeEntries]);
-    setIncomeAmount('');
-    setIncomeNote('');
-    setIncomeDate(toDateInputValue(new Date()));
-    setSaved(false);
-  }
-
-  function handleConfirmDeleteIncomeEntry() {
-    if (!incomeToDelete) {
-      return;
-    }
-
-    onSaveIncomeEntries(incomeEntries.filter((entry) => entry.id !== incomeToDelete.id));
-    setIncomeToDelete(null);
-    setSaved(false);
   }
 
   function handleConfirmSavingsSettings() {
@@ -359,7 +322,7 @@ export function SettingsScreen({
             </fieldset>
 
             <label>
-              <span>Ближайшая выплата</span>
+              <span>{incomeFrequency === 'biweekly' ? 'Первая ближайшая выплата' : 'Ближайшая выплата'}</span>
               <input
                 onChange={(event) => {
                   setNextIncomeDate(event.target.value);
@@ -369,6 +332,20 @@ export function SettingsScreen({
                 value={nextIncomeDate}
               />
             </label>
+
+            {incomeFrequency === 'biweekly' ? (
+              <label>
+                <span>Вторая ближайшая выплата</span>
+                <input
+                  onChange={(event) => {
+                    setSecondIncomeDate(event.target.value);
+                    setSaved(false);
+                  }}
+                  type="date"
+                  value={secondIncomeDate}
+                />
+              </label>
+            ) : null}
 
             <label>
               <span>Обычная сумма выплаты</span>
@@ -386,58 +363,17 @@ export function SettingsScreen({
 
             <div className="income-schedule-note">
               <span>Ближайшая выплата: {formatDate(nextIncomeDate)}</span>
+              {incomeFrequency === 'biweekly' ? <span>Вторая ближайшая выплата: {formatDate(secondIncomeDate)}</span> : null}
               <span>Следующая после неё: {formatDate(nextIncomeAfter)}</span>
-              <p>Эти даты не добавляют деньги автоматически.</p>
+              <p>Начисления создаются автоматически, когда дата выплаты наступила.</p>
             </div>
 
             <section className="income-entry-card">
-              <h3>Добавить поступление</h3>
-              <label>
-                <span>Сумма</span>
-                <input
-                  inputMode="decimal"
-                  min="0"
-                  onChange={(event) => setIncomeAmount(event.target.value)}
-                  type="number"
-                  value={incomeAmount}
-                />
-              </label>
-              <label>
-                <span>Комментарий</span>
-                <input onChange={(event) => setIncomeNote(event.target.value)} value={incomeNote} />
-              </label>
-              <label>
-                <span>Дата</span>
-                <input onChange={(event) => setIncomeDate(event.target.value)} type="date" value={incomeDate} />
-              </label>
-              <button className="secondary-button" onClick={handleAddIncomeEntry} type="button">
-                Добавить поступление
+              <h3>Начисления</h3>
+              <p className="muted">Обычные начисления добавляются и редактируются как операции.</p>
+              <button className="secondary-button" onClick={onOpenAddIncome} type="button">
+                Добавить начисление
               </button>
-            </section>
-
-            <section className="income-list">
-              <div className="section-title">
-                <h3>Поступления текущего месяца</h3>
-                <span>{currentMonthIncomeEntries.length ? `${currentMonthIncomeEntries.length}` : ''}</span>
-              </div>
-              {currentMonthIncomeEntries.length ? (
-                currentMonthIncomeEntries.map((entry) => (
-                  <article className="income-list-item" key={entry.id}>
-                    <div>
-                      <strong>{entry.note || 'Доп. доход'}</strong>
-                      <span>{formatDate(entry.date)}</span>
-                    </div>
-                    <div>
-                      <strong>{formatMoney(entry.amount, settings.currency)}</strong>
-                      <button className="delete-button" onClick={() => setIncomeToDelete(entry)} type="button">
-                        Удалить
-                      </button>
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <p className="empty-state">Поступлений в этом месяце пока нет.</p>
-              )}
             </section>
 
             <div className={`savings-panel${workingBudget <= 0 ? ' savings-panel--disabled' : ''}`}>
@@ -527,42 +463,6 @@ export function SettingsScreen({
       </main>
 
       {savingsConfirmationModal}
-
-      {incomeToDelete ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-income-title">
-            <div className="confirm-modal__head">
-              <p className="subtitle">Подтверждение</p>
-              <h2 id="delete-income-title">Удалить поступление?</h2>
-            </div>
-            <div className="confirm-modal__expense">
-              <div>
-                <span>Сумма</span>
-                <strong>{formatMoney(incomeToDelete.amount, settings.currency)}</strong>
-              </div>
-              <div>
-                <span>Дата</span>
-                <strong>{formatDate(incomeToDelete.date)}</strong>
-              </div>
-              {incomeToDelete.note ? (
-                <div>
-                  <span>Комментарий</span>
-                  <strong>{incomeToDelete.note}</strong>
-                </div>
-              ) : null}
-            </div>
-            <p className="confirm-modal__warning">Это действие нельзя отменить.</p>
-            <div className="confirm-modal__actions">
-              <button className="secondary-button" onClick={() => setIncomeToDelete(null)} type="button">
-                Отмена
-              </button>
-              <button className="danger-button" onClick={handleConfirmDeleteIncomeEntry} type="button">
-                Удалить
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
 
       {clearConfirmationOpen ? (
         <div className="modal-backdrop" role="presentation">
