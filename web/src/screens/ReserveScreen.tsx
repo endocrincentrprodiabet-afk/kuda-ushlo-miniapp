@@ -69,7 +69,7 @@ export function ReserveScreen({
   const reserveGoalLeft = Math.max(0, reserveGoal.targetAmount - reserveTotal);
   const reserveHeroCaption =
     reserveTotal > 0
-      ? 'Ты уже отложил эту сумму. Запас растёт — это сильный результат.'
+      ? 'Уже отложено. Двигаешься к цели.'
       : 'Здесь появится сумма, которую ты реально отложил.';
   const sortedClosures = useMemo(
     () => [...reserveClosures].sort((a, b) => b.month.localeCompare(a.month)),
@@ -194,14 +194,13 @@ export function ReserveScreen({
       <main className="screen reserve-screen">
         <header className="top-header">
           <div>
-            <p className="subtitle">Неприкосновенный запас</p>
+            <p className="subtitle">Бюджет на цели</p>
             <h1>Запас</h1>
           </div>
         </header>
 
         <section className="reserve-hero">
           <div className="reserve-hero__glow" aria-hidden="true" />
-          <h2 className="reserve-hero-title">Неприкосновенный запас</h2>
           <AnimatedMoney
             amount={reserveTotal}
             className="reserve-hero-amount reserve-hero__amount"

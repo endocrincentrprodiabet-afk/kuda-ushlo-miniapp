@@ -540,16 +540,6 @@ h2 {
   z-index: 1;
 }
 
-.reserve-hero-title {
-  max-width: 12ch;
-  margin: 0;
-  color: var(--text);
-  font-size: clamp(24px, 7vw, 34px);
-  font-weight: 780;
-  line-height: 1.06;
-  letter-spacing: 0;
-}
-
 .reserve-hero-amount,
 .reserve-hero__amount {
   display: block;
