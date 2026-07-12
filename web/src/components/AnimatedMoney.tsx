@@ -6,6 +6,7 @@ type AnimatedMoneyProps = {
   currency: string;
   className?: string;
   debounceMs?: number;
+  durationMs?: number;
 };
 
 function prefersReducedMotion(): boolean {
@@ -16,7 +17,7 @@ function easeOutCubic(progress: number): number {
   return 1 - Math.pow(1 - progress, 3);
 }
 
-export function AnimatedMoney({ amount, currency, className, debounceMs = 140 }: AnimatedMoneyProps) {
+export function AnimatedMoney({ amount, currency, className, debounceMs = 140, durationMs = 380 }: AnimatedMoneyProps) {
   const [displayAmount, setDisplayAmount] = useState(amount);
   const previousAmountRef = useRef(amount);
   const currentAmountRef = useRef(amount);
@@ -30,7 +31,7 @@ export function AnimatedMoney({ amount, currency, className, debounceMs = 140 }:
     }
 
     const to = amount;
-    const duration = 260;
+    const duration = Math.min(450, Math.max(300, durationMs));
     const delay = Math.max(0, debounceMs);
     let frameId = 0;
     let timeoutId = 0;
@@ -64,7 +65,7 @@ export function AnimatedMoney({ amount, currency, className, debounceMs = 140 }:
       cancelAnimationFrame(frameId);
       previousAmountRef.current = currentAmountRef.current;
     };
-  }, [amount, debounceMs]);
+  }, [amount, debounceMs, durationMs]);
 
   return <span className={className}>{formatMoney(Math.round(displayAmount), currency)}</span>;
 }

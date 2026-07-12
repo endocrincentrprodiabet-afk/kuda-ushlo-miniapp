@@ -23,6 +23,7 @@ type HomeScreenProps = {
   settings: Settings;
   incomeEntries: IncomeEntry[];
   onNavigate: (screen: Screen) => void;
+  onOpenMoneyFlow: () => void;
   onSendReport: () => void;
   reportStatus: string;
 };
@@ -102,7 +103,15 @@ function sortOperationsByDate(operations: RecentOperation[]): RecentOperation[] 
   });
 }
 
-export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSendReport, reportStatus }: HomeScreenProps) {
+export function HomeScreen({
+  expenses,
+  settings,
+  incomeEntries,
+  onNavigate,
+  onOpenMoneyFlow,
+  onSendReport,
+  reportStatus,
+}: HomeScreenProps) {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
@@ -236,6 +245,14 @@ export function HomeScreen({ expenses, settings, incomeEntries, onNavigate, onSe
         <section className={`card month-balance-card ${isMonthOverBudget ? 'month-balance-card--over' : ''}`}>
           <div className="month-balance-head">
             <span className="muted">Динамика месяца</span>
+            <button
+              aria-label="Открыть поток месяца"
+              className="month-balance-flow-action"
+              onClick={onOpenMoneyFlow}
+              type="button"
+            >
+              Открыть поток
+            </button>
           </div>
           <div className="month-dynamics-main">
             <div>

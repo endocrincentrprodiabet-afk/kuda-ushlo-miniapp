@@ -2132,6 +2132,324 @@ input::placeholder {
   transform: translateX(-50%);
 }
 
+.app-shell--detail {
+  width: min(100%, 920px);
+}
+
+.money-flow-screen {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: calc(14px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+  animation: money-flow-screen-enter 280ms ease both;
+}
+
+.money-flow-screen__header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  gap: 16px;
+  margin: calc(-14px - env(safe-area-inset-top)) -16px 0;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  background: linear-gradient(180deg, rgba(11, 14, 18, 0.98) 82%, rgba(11, 14, 18, 0));
+}
+
+.money-flow-screen__header > div {
+  display: grid;
+  gap: 7px;
+}
+
+.money-flow-screen__kicker {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.money-flow-screen__header h1 {
+  margin: 0;
+}
+
+.money-flow-screen__subtitle {
+  max-width: 580px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.money-flow-back,
+.month-balance-flow-action {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(28, 34, 43, 0.82);
+  color: var(--text);
+  font-weight: 650;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 90ms ease;
+}
+
+.money-flow-back {
+  justify-self: start;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.month-balance-flow-action {
+  min-height: 32px;
+  padding: 0 11px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.money-flow-back:active,
+.month-balance-flow-action:active {
+  transform: scale(0.97);
+}
+
+.money-flow-back:focus-visible,
+.month-balance-flow-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.money-flow-card,
+.money-flow-metrics,
+.money-flow-summary {
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.money-flow-card {
+  overflow: hidden;
+  padding: 14px 10px;
+}
+
+.money-flow-diagram {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.money-flow-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.money-flow-diagram--muted .money-flow-edge {
+  opacity: 0.46;
+}
+
+.money-flow-node {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  align-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(245, 247, 250, 0.1);
+  border-left: 3px solid var(--muted-soft);
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: rgba(21, 26, 32, 0.94);
+  transition:
+    border-color 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.money-flow-node--source {
+  border-left-color: rgba(89, 214, 185, 0.9);
+}
+
+.money-flow-node--savings,
+.money-flow-node--remaining {
+  border-left-color: var(--accent);
+}
+
+.money-flow-node--spending {
+  border-left-color: rgba(126, 175, 203, 0.78);
+}
+
+.money-flow-node--spent {
+  border-left-color: rgba(219, 171, 98, 0.82);
+}
+
+.money-flow-node--deficit {
+  border-left-color: var(--danger-strong);
+}
+
+.money-flow-node--muted {
+  border-left-color: var(--muted-soft);
+  opacity: 0.58;
+}
+
+.money-flow-node--pulse {
+  border-color: rgba(245, 247, 250, 0.22);
+  transform: scale(1.015);
+}
+
+.money-flow-node__label,
+.money-flow-node__share {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.money-flow-node > span:not(.money-flow-node__label):not(.money-flow-node__share) {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.money-flow-node__share {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  color: var(--muted-soft);
+  font-size: 9px;
+}
+
+.money-flow-node--deficit > span:not(.money-flow-node__label):not(.money-flow-node__share) {
+  color: var(--danger-strong);
+}
+
+.money-flow-edge {
+  color: var(--muted-soft);
+}
+
+.money-flow-edge--source,
+.money-flow-edge--spending {
+  color: rgba(89, 214, 185, 0.72);
+}
+
+.money-flow-edge--savings,
+.money-flow-edge--remaining {
+  color: var(--accent);
+}
+
+.money-flow-edge--spent {
+  color: rgba(219, 171, 98, 0.82);
+}
+
+.money-flow-edge--deficit {
+  color: var(--danger-strong);
+}
+
+.money-flow-edge__base,
+.money-flow-edge__signal {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.money-flow-edge__base {
+  opacity: 0.2;
+}
+
+.money-flow-edge__signal {
+  opacity: 0.58;
+  stroke-dasharray: 7 16;
+  animation: money-flow-dash linear infinite;
+  transition: opacity 180ms ease;
+}
+
+.money-flow-edge--boosted .money-flow-edge__signal {
+  opacity: 0.86;
+}
+
+.money-flow-edge__particle {
+  fill: currentColor;
+  opacity: 0.72;
+}
+
+.money-flow-empty {
+  width: min(100%, 310px);
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.money-flow-metrics,
+.money-flow-summary {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+}
+
+.money-flow-metrics dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--line-soft);
+}
+
+.money-flow-metrics dl div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  background: rgba(21, 26, 32, 0.98);
+}
+
+.money-flow-metrics dt,
+.money-flow-metrics dd,
+.money-flow-summary p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.money-flow-metrics dt {
+  color: var(--muted);
+}
+
+.money-flow-metrics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.money-flow-metric--deficit dt,
+.money-flow-metric--deficit dd {
+  color: var(--danger-strong);
+}
+
+.money-flow-summary > div {
+  display: grid;
+  gap: 7px;
+}
+
+.money-flow-summary p {
+  color: var(--muted);
+}
+
+.money-flow-summary__deficit {
+  color: var(--danger-strong) !important;
+}
+
 .nav-button {
   min-height: 42px;
   padding: 0 2px;
@@ -2154,7 +2472,9 @@ input::placeholder {
 
   .secondary-button:hover,
   .chip:hover,
-  .segmented button:hover {
+  .segmented button:hover,
+  .money-flow-back:hover,
+  .month-balance-flow-action:hover {
     background: #232a34;
   }
 
@@ -2236,6 +2556,24 @@ input::placeholder {
   }
 }
 
+@keyframes money-flow-screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes money-flow-dash {
+  to {
+    stroke-dashoffset: -46;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .primary-button,
   .secondary-button,
@@ -2249,6 +2587,12 @@ input::placeholder {
     transition: none;
   }
 
+  .money-flow-back,
+  .month-balance-flow-action,
+  .money-flow-node {
+    transition: none;
+  }
+
   .app-shell--ready,
   .splash-screen--leaving,
   .modal-backdrop,
@@ -2258,6 +2602,7 @@ input::placeholder {
   .reserve-hero__glow,
   .week-details-overlay,
   .week-details-sheet,
+  .money-flow-screen,
   .splash-content,
   .splash-progress span {
     animation-duration: 1ms;
@@ -2269,6 +2614,18 @@ input::placeholder {
 
   .reserve-hero__glow {
     animation: none;
+  }
+
+  .money-flow-edge__signal {
+    animation: none;
+  }
+
+  .money-flow-edge__particle {
+    display: none;
+  }
+
+  .money-flow-node--pulse {
+    transform: none;
   }
 }
 
@@ -2373,5 +2730,24 @@ input::placeholder {
     max-height: 88dvh;
     transform: translate(-50%, -50%);
     animation-name: savings-modal-enter-desktop;
+  }
+
+  .money-flow-screen {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .money-flow-screen__header,
+  .money-flow-card {
+    grid-column: 1 / -1;
+  }
+
+  .money-flow-screen__header {
+    margin-right: -22px;
+    margin-left: -22px;
+    padding-right: 22px;
+    padding-left: 22px;
   }
 }

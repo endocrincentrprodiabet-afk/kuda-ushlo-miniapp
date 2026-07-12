@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type TouchEvent } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { SplashScreen } from './components/SplashScreen';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { MoneyFlowScreen } from './screens/MoneyFlowScreen';
 import { ReserveScreen } from './screens/ReserveScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS } from './lib/constants';
@@ -28,6 +29,7 @@ import type { Expense, HistoryFilter, IncomeEntry, ReserveClosure, ReserveGoal, 
 
 const screenOrder: Screen[] = ['home', 'add', 'history', 'reserve', 'settings'];
 const swipeThreshold = 70;
+type ActiveDetail = 'moneyFlow' | null;
 
 function isSwipeBlocked(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -45,6 +47,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashLeaving, setIsSplashLeaving] = useState(false);
   const [screen, setScreen] = useState<Screen>('home');
+  const [activeDetail, setActiveDetail] = useState<ActiveDetail>(null);
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>(() => loadIncomeEntries());
@@ -59,6 +62,8 @@ export default function App() {
   const [addScreenMode, setAddScreenMode] = useState<'expense' | 'income'>('expense');
   const [editReturnScreen, setEditReturnScreen] = useState<Screen>('history');
   const swipeStartRef = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
+  const homeScrollPositionRef = useRef(0);
+  const restoreHomeScrollRef = useRef(false);
 
   useEffect(() => {
     const leaveTimer = window.setTimeout(() => {
@@ -107,6 +112,25 @@ export default function App() {
   useEffect(() => {
     saveReserveClosures(reserveClosures);
   }, [reserveClosures]);
+
+  useLayoutEffect(() => {
+    if (activeDetail) {
+      window.scrollTo({ top: 0 });
+    }
+  }, [activeDetail]);
+
+  useEffect(() => {
+    if (activeDetail || !restoreHomeScrollRef.current) {
+      return;
+    }
+
+    restoreHomeScrollRef.current = false;
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: homeScrollPositionRef.current });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeDetail]);
 
   function handleAddExpense(expense: Expense) {
     setExpenses((current) => [expense, ...current]);
@@ -177,6 +201,7 @@ export default function App() {
   }
 
   function handleNavigate(nextScreen: Screen) {
+    setActiveDetail(null);
     if (nextScreen !== 'add') {
       setEditingExpense(null);
       setEditingIncomeEntry(null);
@@ -187,6 +212,16 @@ export default function App() {
     }
 
     setScreen(nextScreen);
+  }
+
+  function handleOpenMoneyFlow() {
+    homeScrollPositionRef.current = window.scrollY;
+    setActiveDetail('moneyFlow');
+  }
+
+  function handleCloseMoneyFlow() {
+    restoreHomeScrollRef.current = true;
+    setActiveDetail(null);
   }
 
   function handleClearData() {
@@ -205,6 +240,11 @@ export default function App() {
   }
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    if (activeDetail) {
+      swipeStartRef.current = null;
+      return;
+    }
+
     const touch = event.touches[0];
 
     if (!touch) {
@@ -253,22 +293,23 @@ export default function App() {
       {showSplash ? <SplashScreen isLeaving={isSplashLeaving} /> : null}
 
       <div
-        className={`app-shell${showSplash ? ' app-shell--loading' : ' app-shell--ready'}`}
+        className={`app-shell${showSplash ? ' app-shell--loading' : ' app-shell--ready'}${activeDetail ? ' app-shell--detail' : ''}`}
         onTouchEnd={handleTouchEnd}
         onTouchStart={handleTouchStart}
       >
-        {screen === 'home' ? (
+        {!activeDetail && screen === 'home' ? (
           <HomeScreen
             expenses={expenses}
             settings={settings}
             incomeEntries={incomeEntries}
             onNavigate={handleNavigate}
+            onOpenMoneyFlow={handleOpenMoneyFlow}
             onSendReport={handleSendReport}
             reportStatus={reportStatus}
           />
         ) : null}
 
-        {screen === 'add' ? (
+        {!activeDetail && screen === 'add' ? (
           <AddExpenseScreen
             editExpense={editingExpense}
             editIncomeEntry={editingIncomeEntry}
@@ -282,7 +323,7 @@ export default function App() {
           />
         ) : null}
 
-        {screen === 'history' ? (
+        {!activeDetail && screen === 'history' ? (
           <HistoryScreen
             expenses={expenses}
             incomeEntries={incomeEntries}
@@ -296,7 +337,7 @@ export default function App() {
           />
         ) : null}
 
-        {screen === 'settings' ? (
+        {!activeDetail && screen === 'settings' ? (
           <SettingsScreen
             settings={settings}
             incomeEntries={incomeEntries}
@@ -306,7 +347,7 @@ export default function App() {
           />
         ) : null}
 
-        {screen === 'reserve' ? (
+        {!activeDetail && screen === 'reserve' ? (
           <ReserveScreen
             expenses={expenses}
             settings={settings}
@@ -318,7 +359,17 @@ export default function App() {
           />
         ) : null}
 
-        <BottomNav currentScreen={screen} onNavigate={handleNavigate} />
+        {activeDetail === 'moneyFlow' ? (
+          <MoneyFlowScreen
+            expenses={expenses}
+            incomeEntries={incomeEntries}
+            onBack={handleCloseMoneyFlow}
+            reserveClosures={reserveClosures}
+            settings={settings}
+          />
+        ) : null}
+
+        {!activeDetail ? <BottomNav currentScreen={screen} onNavigate={handleNavigate} /> : null}
       </div>
 
       {expenseToDelete ? (
