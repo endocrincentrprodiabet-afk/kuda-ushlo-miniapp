@@ -38,7 +38,7 @@ function isSwipeBlocked(target: EventTarget | null): boolean {
 
   return Boolean(
     target.closest(
-      'input, textarea, button, select, [role="button"], .modal-backdrop, .confirm-modal, .week-details-overlay, .week-details-sheet',
+      'input, textarea, button, select, [role="button"], .modal-backdrop, .confirm-modal, .week-details-overlay, .week-details-sheet, .reserve-core__canvas',
     ),
   );
 }

@@ -1,6 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
+import { ReserveCoreErrorBoundary } from '../components/reserve3d/ReserveCoreErrorBoundary';
+import { ReserveCoreFallback } from '../components/reserve3d/ReserveCoreFallback';
 import {
   getCurrentMonthKey,
   getGoalProgress,
@@ -13,6 +15,8 @@ import {
 } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
 import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
+
+const ReserveCore3D = lazy(() => import('../components/reserve3d/ReserveCore3D'));
 
 type ReserveScreenProps = {
   expenses: Expense[];
@@ -67,10 +71,6 @@ export function ReserveScreen({
   const progress = getGoalProgress(reserveTotal, reserveGoal.targetAmount);
   const cappedProgress = Math.min(100, Math.max(0, progress));
   const reserveGoalLeft = Math.max(0, reserveGoal.targetAmount - reserveTotal);
-  const reserveHeroCaption =
-    reserveTotal > 0
-      ? 'Уже отложено. Двигаешься к цели.'
-      : 'Здесь появится сумма, которую ты реально отложил.';
   const sortedClosures = useMemo(
     () => [...reserveClosures].sort((a, b) => b.month.localeCompare(a.month)),
     [reserveClosures],
@@ -199,21 +199,40 @@ export function ReserveScreen({
           </div>
         </header>
 
-        <section className="reserve-hero">
-          <div className="reserve-hero__glow" aria-hidden="true" />
-          <AnimatedMoney
-            amount={reserveTotal}
-            className="reserve-hero-amount reserve-hero__amount"
-            currency={settings.currency}
-            debounceMs={180}
-          />
-          <p className="reserve-hero-caption">{reserveHeroCaption}</p>
-          {reserveGoal.targetAmount > 0 ? (
-            <p className="reserve-hero-progress-note">
-              {reserveGoalLeft === 0 ? 'Цель достигнута' : `До цели осталось: ${formatMoney(reserveGoalLeft, settings.currency)}`}
-            </p>
-          ) : null}
-        </section>
+        <ReserveCoreErrorBoundary
+          fallback={
+            <ReserveCoreFallback
+              currency={settings.currency}
+              goalProgress={progress}
+              goalTitle={reserveGoal.title}
+              remainingToGoal={reserveGoalLeft}
+              reserveTotal={reserveTotal}
+              targetAmount={reserveGoal.targetAmount}
+            />
+          }
+        >
+          <Suspense
+            fallback={
+              <ReserveCoreFallback
+                currency={settings.currency}
+                goalProgress={progress}
+                goalTitle={reserveGoal.title}
+                remainingToGoal={reserveGoalLeft}
+                reserveTotal={reserveTotal}
+                targetAmount={reserveGoal.targetAmount}
+              />
+            }
+          >
+            <ReserveCore3D
+              currency={settings.currency}
+              goalProgress={progress}
+              goalTitle={reserveGoal.title}
+              remainingToGoal={reserveGoalLeft}
+              reserveTotal={reserveTotal}
+              targetAmount={reserveGoal.targetAmount}
+            />
+          </Suspense>
+        </ReserveCoreErrorBoundary>
 
         <form className="card reserve-goal-card" onSubmit={handleSaveGoal}>
           <div className="section-title">

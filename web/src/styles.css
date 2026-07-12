@@ -502,77 +502,163 @@ h2 {
   gap: 16px;
 }
 
-.reserve-hero {
+.reserve-core {
   position: relative;
-  display: flex;
-  min-height: 232px;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 14px;
+  display: grid;
   overflow: hidden;
-  border: 1px solid rgba(215, 255, 23, 0.24);
-  border-radius: 22px;
-  padding: 28px 22px 24px;
+  border: 1px solid rgba(110, 228, 208, 0.2);
+  border-radius: 24px;
   background:
-    radial-gradient(circle at 86% 6%, rgba(255, 46, 138, 0.2), transparent 34%),
-    radial-gradient(circle at 10% 2%, rgba(89, 214, 185, 0.24), transparent 36%),
-    radial-gradient(circle at 52% 92%, rgba(215, 255, 23, 0.12), transparent 38%),
-    linear-gradient(145deg, rgba(19, 28, 30, 0.98), rgba(9, 11, 16, 0.99) 62%, rgba(14, 17, 23, 0.98));
+    radial-gradient(circle at 14% 8%, rgba(89, 214, 185, 0.16), transparent 33%),
+    radial-gradient(circle at 88% 16%, rgba(255, 46, 138, 0.09), transparent 31%),
+    radial-gradient(circle at 50% 52%, rgba(215, 255, 23, 0.07), transparent 36%),
+    linear-gradient(155deg, rgba(17, 25, 28, 0.99), rgba(8, 11, 15, 1) 64%, rgba(13, 17, 22, 0.99));
   box-shadow:
-    0 24px 54px rgba(0, 0, 0, 0.38),
+    0 24px 56px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(245, 247, 250, 0.06);
+  isolation: isolate;
 }
 
-.reserve-hero__glow {
+.reserve-core::before {
+  content: '';
   position: absolute;
-  inset: -42%;
-  background:
-    radial-gradient(circle at 28% 45%, rgba(215, 255, 23, 0.22), transparent 25%),
-    radial-gradient(circle at 70% 55%, rgba(89, 214, 185, 0.18), transparent 28%),
-    radial-gradient(circle at 53% 18%, rgba(255, 46, 138, 0.14), transparent 24%);
-  filter: blur(28px);
-  opacity: 0.78;
-  animation: reserve-glow-drift 12s ease-in-out infinite alternate;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 22%, rgba(255, 255, 255, 0.035) 48%, transparent 70%);
+  pointer-events: none;
 }
 
-.reserve-hero > *:not(.reserve-hero__glow) {
+.reserve-core__canvas,
+.reserve-core-fallback__visual {
   position: relative;
-  z-index: 1;
+  width: 100%;
+  height: clamp(300px, 82vw, 336px);
+  min-height: 0;
 }
 
-.reserve-hero-amount,
-.reserve-hero__amount {
+.reserve-core__canvas {
+  cursor: grab;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reserve-core__canvas:active {
+  cursor: grabbing;
+}
+
+.reserve-core__canvas canvas {
   display: block;
-  color: var(--accent);
-  font-size: clamp(48px, 15vw, 72px);
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: pan-y;
+}
+
+.reserve-core__content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 0 18px 24px;
+  text-align: center;
+}
+
+.reserve-core__label,
+.reserve-core__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.reserve-core__label {
+  letter-spacing: 0.025em;
+}
+
+.reserve-core__amount {
+  display: block;
+  max-width: 100%;
+  color: var(--text);
+  font-size: clamp(42px, 13vw, 66px);
   font-weight: 800;
   font-variant-numeric: tabular-nums lining-nums;
-  line-height: 0.92;
+  line-height: 0.96;
   letter-spacing: 0;
   overflow-wrap: anywhere;
-  text-shadow: 0 0 22px rgba(215, 255, 23, 0.14);
+  text-shadow: 0 0 24px rgba(215, 255, 23, 0.08);
 }
 
-.reserve-hero-caption {
-  max-width: 28rem;
-  margin: 0;
-  color: rgba(245, 247, 250, 0.82);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.48;
-}
-
-.reserve-hero-progress-note {
-  align-self: flex-start;
-  margin: 0;
-  border: 1px solid rgba(215, 255, 23, 0.22);
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: rgba(215, 255, 23, 0.08);
-  color: var(--accent);
+.reserve-core__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px 12px;
+  margin-top: 2px;
+  color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.35;
+}
+
+.reserve-core__status strong {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.reserve-core__status span {
+  font-variant-numeric: tabular-nums;
+}
+
+.reserve-core--fallback {
+  min-height: 420px;
+}
+
+.reserve-core-fallback__visual {
+  display: grid;
+  place-items: center;
+}
+
+.reserve-core-fallback__visual::after {
+  content: '';
+  position: absolute;
+  bottom: 44px;
+  width: 132px;
+  height: 18px;
+  border: 1px solid rgba(110, 228, 208, 0.16);
+  border-radius: 50%;
+  background: rgba(14, 25, 25, 0.74);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+}
+
+.reserve-core-fallback__ring {
+  position: absolute;
+  width: 214px;
+  height: 214px;
+  border: 1px solid rgba(110, 228, 208, 0.28);
+  border-radius: 50%;
+  transform: rotateX(62deg) rotateZ(-14deg);
+  box-shadow: 0 0 26px rgba(89, 214, 185, 0.08);
+}
+
+.reserve-core-fallback__orb {
+  width: 166px;
+  height: 166px;
+  border: 1px solid rgba(110, 228, 208, 0.34);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 34%, rgba(245, 247, 250, 0.18), transparent 18%),
+    radial-gradient(circle at 50% 54%, rgba(215, 255, 23, 0.5), rgba(89, 214, 185, 0.2) 34%, rgba(13, 25, 27, 0.18) 64%),
+    rgba(16, 31, 32, 0.46);
+  box-shadow:
+    inset -20px -24px 42px rgba(4, 9, 12, 0.6),
+    inset 12px 14px 30px rgba(110, 228, 208, 0.11),
+    0 0 38px rgba(215, 255, 23, 0.08);
+}
+
+.reserve-core__empty {
+  max-width: 260px;
+  margin: 0;
 }
 
 .reserve-goal-card,
@@ -2599,7 +2685,6 @@ input::placeholder {
   .confirm-modal,
   .savings-warning-backdrop,
   .reserve-modal-backdrop,
-  .reserve-hero__glow,
   .week-details-overlay,
   .week-details-sheet,
   .money-flow-screen,
@@ -2610,10 +2695,6 @@ input::placeholder {
 
   .app-shell--loading {
     transform: none;
-  }
-
-  .reserve-hero__glow {
-    animation: none;
   }
 
   .money-flow-edge__signal {
@@ -2687,19 +2768,18 @@ input::placeholder {
   }
 }
 
-@keyframes reserve-glow-drift {
-  from {
-    transform: translate3d(-2%, -1%, 0) scale(1);
-  }
-
-  to {
-    transform: translate3d(2%, 1%, 0) scale(1.04);
-  }
-}
-
 @media (min-width: 720px) {
   .screen {
     padding: 34px 18px calc(28px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .reserve-core__canvas,
+  .reserve-core-fallback__visual {
+    height: 390px;
+  }
+
+  .reserve-core__content {
+    padding-bottom: 30px;
   }
 
   .actions {
