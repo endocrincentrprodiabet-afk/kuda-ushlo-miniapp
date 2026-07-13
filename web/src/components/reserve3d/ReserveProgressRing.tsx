@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 type ReserveProgressRingProps = {
+  animateProgress: boolean;
   goalProgress: number;
   hasGoal: boolean;
-  reducedMotion: boolean;
+  isActive: boolean;
+  segments: number;
 };
 
-const ringSegments = 128;
 const ringRadius = 1.72;
 
 function getRingPoint(progress: number): THREE.Vector3 {
@@ -17,14 +18,20 @@ function getRingPoint(progress: number): THREE.Vector3 {
   return new THREE.Vector3(Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius, 0);
 }
 
-export function ReserveProgressRing({ goalProgress, hasGoal, reducedMotion }: ReserveProgressRingProps) {
+export function ReserveProgressRing({
+  animateProgress,
+  goalProgress,
+  hasGoal,
+  isActive,
+  segments,
+}: ReserveProgressRingProps) {
   const geometry = useRef<THREE.BufferGeometry>(null);
-  const activePositions = useMemo(() => new Float32Array((ringSegments + 1) * 3), []);
+  const activePositions = useMemo(() => new Float32Array((segments + 1) * 3), [segments]);
   const trackPoints = useMemo(
-    () => Array.from({ length: ringSegments + 1 }, (_, index) => getRingPoint(index / ringSegments)),
-    [],
+    () => Array.from({ length: segments + 1 }, (_, index) => getRingPoint(index / segments)),
+    [segments],
   );
-  const displayedProgress = useRef(reducedMotion ? goalProgress : 0);
+  const displayedProgress = useRef(animateProgress ? 0 : goalProgress);
   const invalidate = useThree((state) => state.invalidate);
 
   const updateActiveArc = useCallback(
@@ -34,9 +41,9 @@ export function ReserveProgressRing({ goalProgress, hasGoal, reducedMotion }: Re
         return;
       }
 
-      const exactSegment = Math.min(ringSegments, progress * ringSegments);
+      const exactSegment = Math.min(segments, progress * segments);
       const wholeSegments = Math.floor(exactSegment);
-      const vertexCount = Math.min(ringSegments + 1, wholeSegments + 2);
+      const vertexCount = Math.min(segments + 1, wholeSegments + 2);
 
       for (let index = 0; index <= wholeSegments; index += 1) {
         const point = trackPoints[index];
@@ -46,7 +53,7 @@ export function ReserveProgressRing({ goalProgress, hasGoal, reducedMotion }: Re
         activePositions[offset + 2] = point.z;
       }
 
-      if (wholeSegments < ringSegments) {
+      if (wholeSegments < segments) {
         const start = trackPoints[wholeSegments];
         const end = trackPoints[wholeSegments + 1];
         const fraction = exactSegment - wholeSegments;
@@ -58,36 +65,46 @@ export function ReserveProgressRing({ goalProgress, hasGoal, reducedMotion }: Re
 
       const positionAttribute = geometry.current.getAttribute('position') as THREE.BufferAttribute;
       positionAttribute.needsUpdate = true;
-      geometry.current.setDrawRange(0, progress >= 1 ? ringSegments + 1 : vertexCount);
+      geometry.current.setDrawRange(0, progress >= 1 ? segments + 1 : vertexCount);
     },
-    [activePositions, hasGoal, trackPoints],
+    [activePositions, hasGoal, segments, trackPoints],
   );
 
   useEffect(() => {
-    if (reducedMotion) {
-      displayedProgress.current = goalProgress;
-      updateActiveArc(goalProgress);
+    if (!animateProgress) {
+      displayedProgress.current = hasGoal ? goalProgress : 0;
+      updateActiveArc(displayedProgress.current);
       invalidate();
     }
-  }, [goalProgress, invalidate, reducedMotion, updateActiveArc]);
+  }, [animateProgress, goalProgress, hasGoal, invalidate, updateActiveArc]);
 
   useFrame((_, delta) => {
-    if (reducedMotion) {
+    if (!isActive || !animateProgress) {
       return;
     }
 
+    const targetProgress = hasGoal ? goalProgress : 0;
     displayedProgress.current = THREE.MathUtils.damp(
       displayedProgress.current,
-      hasGoal ? goalProgress : 0,
+      targetProgress,
       5,
       Math.min(delta, 0.05),
     );
+
+    if (Math.abs(displayedProgress.current - targetProgress) <= 0.0005) {
+      displayedProgress.current = targetProgress;
+    }
+
     updateActiveArc(displayedProgress.current);
+
+    if (Math.abs(displayedProgress.current - targetProgress) > 0.0005) {
+      invalidate();
+    }
   });
 
   return (
     <group rotation={[0.34, -0.18, -0.12]}>
-      <Line color="#48645f" lineWidth={1.15} opacity={0.52} points={trackPoints} transparent />
+      <Line color="#48645f" lineWidth={1.05} opacity={0.48} points={trackPoints} transparent />
       <line>
         <bufferGeometry ref={geometry}>
           <bufferAttribute attach="attributes-position" args={[activePositions, 3]} />

@@ -14,6 +14,7 @@ type MoneyFlowNodeProps = {
   tone: MoneyFlowTone;
   percentage?: number;
   muted?: boolean;
+  reducedMotion: boolean;
 };
 
 export function MoneyFlowNode({
@@ -27,12 +28,14 @@ export function MoneyFlowNode({
   tone,
   percentage,
   muted = false,
+  reducedMotion,
 }: MoneyFlowNodeProps) {
   const previousAmount = useRef(amount);
   const [isPulsing, setIsPulsing] = useState(false);
 
   useEffect(() => {
-    if (previousAmount.current === amount) {
+    if (previousAmount.current === amount || reducedMotion) {
+      previousAmount.current = amount;
       return;
     }
 
@@ -41,7 +44,7 @@ export function MoneyFlowNode({
     const timeoutId = window.setTimeout(() => setIsPulsing(false), 460);
 
     return () => window.clearTimeout(timeoutId);
-  }, [amount]);
+  }, [amount, reducedMotion]);
 
   const percentLabel = percentage === undefined ? '' : `, ${Math.round(percentage * 100)} процентов`;
 

@@ -9,9 +9,10 @@ type MoneyFlowEdgeProps = {
   parentAmount: number;
   tone: MoneyFlowTone;
   enabled: boolean;
+  reducedMotion: boolean;
 };
 
-export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled }: MoneyFlowEdgeProps) {
+export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled, reducedMotion }: MoneyFlowEdgeProps) {
   const previousAmount = useRef(amount);
   const [isBoosted, setIsBoosted] = useState(false);
   const width = normalizeFlowWidth(amount, parentAmount);
@@ -20,7 +21,8 @@ export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled }:
   const isActive = enabled && amount > 0 && parentAmount > 0;
 
   useEffect(() => {
-    if (previousAmount.current === amount) {
+    if (previousAmount.current === amount || reducedMotion) {
+      previousAmount.current = amount;
       return;
     }
 
@@ -29,12 +31,12 @@ export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled }:
     const timeoutId = window.setTimeout(() => setIsBoosted(false), 520);
 
     return () => window.clearTimeout(timeoutId);
-  }, [amount]);
+  }, [amount, reducedMotion]);
 
   return (
     <g className={`money-flow-edge money-flow-edge--${tone}${isActive ? ' money-flow-edge--active' : ''}${isBoosted ? ' money-flow-edge--boosted' : ''}`}>
       <path className="money-flow-edge__base" d={path} style={{ strokeWidth: width }} />
-      {isActive ? (
+      {isActive && !reducedMotion ? (
         <>
           <path
             className="money-flow-edge__signal"

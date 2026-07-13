@@ -1,6 +1,7 @@
 import { AnimatedMoney } from '../AnimatedMoney';
 import { formatMoney } from '../../lib/format';
-import type { ReserveCoreData } from '../../lib/reserveVisual';
+import { getReserveVisualState, type ReserveCoreData } from '../../lib/reserveVisual';
+import type { CSSProperties } from 'react';
 
 function getProgressText(goalProgress: number): string {
   return `${Math.round(goalProgress)}% цели`;
@@ -13,11 +14,16 @@ export function ReserveCoreFallback({
   remainingToGoal,
   currency,
 }: ReserveCoreData) {
+  const visualState = getReserveVisualState(reserveTotal, targetAmount);
+  const coreStyle = { '--reserve-fallback-core-scale': visualState.coreScale } as CSSProperties;
+
   return (
     <section className="reserve-core reserve-core--fallback">
       <div className="reserve-core-fallback__visual" aria-hidden="true">
         <div className="reserve-core-fallback__ring" />
-        <div className="reserve-core-fallback__orb" />
+        <div className="reserve-core-fallback__orb">
+          <div className="reserve-core-fallback__inner" style={coreStyle} />
+        </div>
       </div>
       <div className="reserve-core__content">
         <p className="reserve-core__label">Накоплено</p>

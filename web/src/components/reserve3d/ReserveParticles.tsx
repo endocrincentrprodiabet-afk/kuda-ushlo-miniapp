@@ -1,16 +1,16 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 type ReserveParticlesProps = {
-  pulse: React.MutableRefObject<number>;
-  reducedMotion: boolean;
+  animated: boolean;
+  count: number;
+  isActive: boolean;
+  pulse: MutableRefObject<number>;
   visualProgress: number;
 };
 
-const particleCount = 72;
-
-function createParticlePositions(): Float32Array {
+function createParticlePositions(particleCount: number): Float32Array {
   const positions = new Float32Array(particleCount * 3);
   let seed = 2749;
 
@@ -33,23 +33,23 @@ function createParticlePositions(): Float32Array {
   return positions;
 }
 
-export function ReserveParticles({ pulse, reducedMotion, visualProgress }: ReserveParticlesProps) {
+export function ReserveParticles({ animated, count, isActive, pulse, visualProgress }: ReserveParticlesProps) {
   const points = useRef<THREE.Points>(null);
   const material = useRef<THREE.PointsMaterial>(null);
-  const positions = useMemo(createParticlePositions, []);
+  const positions = useMemo(() => createParticlePositions(count), [count]);
 
   useFrame((_, delta) => {
-    if (reducedMotion || !points.current) {
+    if (!isActive || !animated || !points.current) {
       return;
     }
 
     const safeDelta = Math.min(delta, 0.05);
-    const speed = 0.025 + visualProgress * 0.025 + pulse.current * 0.22;
+    const speed = 0.02 + visualProgress * 0.022 + pulse.current * 0.18;
     points.current.rotation.y += safeDelta * speed;
-    points.current.rotation.x += safeDelta * speed * 0.18;
+    points.current.rotation.x += safeDelta * speed * 0.16;
 
     if (material.current) {
-      material.current.opacity = 0.3 + visualProgress * 0.36 + pulse.current * 0.18;
+      material.current.opacity = 0.26 + visualProgress * 0.32 + pulse.current * 0.14;
     }
   });
 
@@ -63,8 +63,8 @@ export function ReserveParticles({ pulse, reducedMotion, visualProgress }: Reser
         blending={THREE.AdditiveBlending}
         color="#8de9d7"
         depthWrite={false}
-        opacity={0.3 + visualProgress * 0.36}
-        size={0.026 + visualProgress * 0.012}
+        opacity={0.26 + visualProgress * 0.32}
+        size={0.024 + visualProgress * 0.01}
         sizeAttenuation
         transparent
       />

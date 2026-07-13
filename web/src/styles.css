@@ -553,6 +553,18 @@ h2 {
   touch-action: pan-y;
 }
 
+.reserve-core[data-quality='medium']::before,
+.reserve-core[data-quality='low']::before {
+  opacity: 0.62;
+}
+
+.reserve-core[data-quality='low'] {
+  background:
+    radial-gradient(circle at 14% 8%, rgba(89, 214, 185, 0.1), transparent 34%),
+    radial-gradient(circle at 88% 16%, rgba(255, 46, 138, 0.045), transparent 32%),
+    linear-gradient(155deg, rgba(17, 25, 28, 0.99), rgba(8, 11, 15, 1) 64%, rgba(13, 17, 22, 0.99));
+}
+
 .reserve-core__content {
   position: relative;
   z-index: 2;
@@ -642,18 +654,31 @@ h2 {
 }
 
 .reserve-core-fallback__orb {
+  position: relative;
+  display: grid;
+  place-items: center;
   width: 166px;
   height: 166px;
   border: 1px solid rgba(110, 228, 208, 0.34);
   border-radius: 50%;
   background:
     radial-gradient(circle at 38% 34%, rgba(245, 247, 250, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 54%, rgba(215, 255, 23, 0.5), rgba(89, 214, 185, 0.2) 34%, rgba(13, 25, 27, 0.18) 64%),
+    radial-gradient(circle at 50% 54%, rgba(89, 214, 185, 0.16), rgba(13, 25, 27, 0.12) 64%),
     rgba(16, 31, 32, 0.46);
   box-shadow:
     inset -20px -24px 42px rgba(4, 9, 12, 0.6),
     inset 12px 14px 30px rgba(110, 228, 208, 0.11),
     0 0 38px rgba(215, 255, 23, 0.08);
+}
+
+.reserve-core-fallback__inner {
+  width: 154px;
+  height: 154px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #d7ff17, #84b938 46%, #315827 100%);
+  box-shadow: 0 0 28px rgba(215, 255, 23, 0.12);
+  transform: scale(var(--reserve-fallback-core-scale, 0));
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reserve-core__empty {
@@ -2330,6 +2355,40 @@ input::placeholder {
   overflow: visible;
 }
 
+.money-flow-diagram--mobile svg {
+  max-height: 390px;
+  overflow: hidden;
+}
+
+.money-flow-diagram--mobile .money-flow-node {
+  gap: 7px;
+  border-radius: 12px;
+  padding: 11px 10px;
+}
+
+.money-flow-diagram--mobile .money-flow-node__label {
+  max-width: calc(100% - 34px);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.money-flow-diagram--mobile .money-flow-node > span:not(.money-flow-node__label):not(.money-flow-node__share) {
+  font-size: 18px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.money-flow-diagram--mobile .money-flow-node--source > span:not(.money-flow-node__label):not(.money-flow-node__share) {
+  font-size: 21px;
+}
+
+.money-flow-diagram--mobile .money-flow-node__share {
+  top: 11px;
+  right: 10px;
+  bottom: auto;
+  font-size: 10px;
+}
+
 .money-flow-diagram--muted .money-flow-edge {
   opacity: 0.46;
 }
@@ -2707,6 +2766,10 @@ input::placeholder {
 
   .money-flow-node--pulse {
     transform: none;
+  }
+
+  .reserve-core-fallback__inner {
+    transition: none;
   }
 }
 

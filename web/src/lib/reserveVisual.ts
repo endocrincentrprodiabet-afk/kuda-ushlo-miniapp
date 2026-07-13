@@ -22,16 +22,15 @@ export function clamp(value: number, minimum: number, maximum: number): number {
 export function getReserveVisualState(
   reserveTotal: number,
   targetAmount: number,
-  goalProgressPercent: number,
 ): ReserveVisualState {
   const hasGoal = targetAmount > 0;
-  const goalProgress = hasGoal ? clamp(goalProgressPercent / 100, 0, 1) : 0;
-  const visualProgress = hasGoal ? 0.18 + 0.82 * Math.sqrt(goalProgress) : reserveTotal > 0 ? 0.3 : 0.12;
+  const goalProgress = hasGoal ? clamp(reserveTotal / targetAmount, 0, 1) : 0;
+  const coreScale = goalProgress <= 0 ? 0 : Math.cbrt(goalProgress);
 
   return {
     goalProgress,
-    visualProgress,
-    coreScale: 0.68 + visualProgress * 0.54,
+    visualProgress: goalProgress,
+    coreScale: coreScale * 0.86,
     hasGoal,
     goalReached: hasGoal && goalProgress >= 1,
   };
