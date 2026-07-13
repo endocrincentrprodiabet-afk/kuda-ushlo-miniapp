@@ -142,7 +142,7 @@ export default function ReserveCore3D(props: ReserveCoreData) {
     <section
       className="reserve-core"
       data-quality={quality}
-      aria-label={goalTitle ? `Прогресс цели: ${goalTitle}` : 'Прогресс запаса'}
+      aria-label={goalTitle ? `Прогресс цели: ${goalTitle}` : 'Прогресс накоплений'}
     >
       <div className="reserve-core__canvas" ref={canvasContainer} aria-hidden="true">
         <Canvas
@@ -172,7 +172,7 @@ export default function ReserveCore3D(props: ReserveCoreData) {
       </div>
 
       <div className="reserve-core__content">
-        <p className="reserve-core__label">Накоплено</p>
+        <p className="reserve-core__label">Всего накоплено</p>
         <AnimatedMoney
           amount={reserveTotal}
           className="reserve-core__amount"

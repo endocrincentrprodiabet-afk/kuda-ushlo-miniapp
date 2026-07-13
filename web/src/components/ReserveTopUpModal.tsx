@@ -83,9 +83,9 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
         aria-describedby={error ? 'reserve-top-up-modal-error' : undefined}
       >
         <div className="confirm-modal__head">
-          <p className="subtitle">Фактический запас</p>
+          <p className="subtitle">Накопления</p>
           <h2 id="reserve-top-up-modal-title">
-            {isEditing ? 'Изменить пополнение' : 'Пополнить запас'}
+            {isEditing ? 'Изменить пополнение' : 'Пополнить сейф'}
           </h2>
         </div>
 
@@ -140,8 +140,12 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
           <button className="secondary-button" onClick={onClose} type="button">
             Отмена
           </button>
-          <button className="primary-button" type="submit">
-            {isEditing ? 'Сохранить изменения' : 'Пополнить запас'}
+          <button
+            aria-label={isEditing ? 'Сохранить изменения пополнения' : 'Пополнить сейф'}
+            className="primary-button"
+            type="submit"
+          >
+            {isEditing ? 'Сохранить изменения' : 'Пополнить сейф'}
           </button>
         </div>
       </form>

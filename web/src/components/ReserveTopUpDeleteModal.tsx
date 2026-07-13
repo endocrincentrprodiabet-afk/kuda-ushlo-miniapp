@@ -50,7 +50,7 @@ export function ReserveTopUpDeleteModal({
           <h2 id="delete-reserve-top-up-title">Удалить пополнение?</h2>
         </div>
         <p className="reserve-modal__text">
-          Запас уменьшится на {formatMoney(topUp.amount, currency)}.
+          Сумма в сейфе уменьшится на {formatMoney(topUp.amount, currency)}.
         </p>
         {willAdjustAllocations ? (
           <p className="confirm-modal__warning">

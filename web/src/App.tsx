@@ -278,7 +278,7 @@ export default function App() {
     setReserveTopUps(nextTopUps);
     setReserveGoals((current) => reconcileReserveGoalAllocations(current, nextReserveTotal));
     setReserveTopUpEditor(undefined);
-    setAppMessage(reserveTopUpEditor ? 'Пополнение изменено.' : 'Запас пополнен.');
+    setAppMessage(reserveTopUpEditor ? 'Пополнение изменено.' : 'Сейф пополнен.');
   }
 
   function handleConfirmDeleteReserveTopUp() {

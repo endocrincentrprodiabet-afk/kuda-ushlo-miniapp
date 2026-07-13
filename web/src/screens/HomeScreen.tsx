@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WeekDetailsSheet } from '../components/WeekDetailsSheet';
 import {
   getBudgetUsagePercent,
@@ -14,8 +14,9 @@ import {
   getWorkingBudget,
   sumExpenses,
 } from '../lib/calculations';
-import { formatDate } from '../lib/date';
+import { formatDate, formatScheduledIncomeDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
+import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
 import type { Expense, IncomeEntry, Screen, Settings } from '../types';
 
 type HomeScreenProps = {
@@ -28,23 +29,24 @@ type HomeScreenProps = {
   reportStatus: string;
 };
 
-function formatDaysLeft(days: number): string {
-  const lastTwoDigits = days % 100;
-  const lastDigit = days % 10;
+function getLocalDayStart(): Date {
+  const now = new Date();
 
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return `${days} дней`;
-  }
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
 
-  if (lastDigit === 1) {
-    return `${days} день`;
-  }
+function useCurrentCalendarDate(): Date {
+  const [today, setToday] = useState(getLocalDayStart);
 
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return `${days} дня`;
-  }
+  useEffect(() => {
+    const now = new Date();
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const timer = window.setTimeout(() => setToday(getLocalDayStart()), nextDay.getTime() - now.getTime() + 100);
 
-  return `${days} дней`;
+    return () => window.clearTimeout(timer);
+  }, [today]);
+
+  return today;
 }
 
 function formatProgressPercent(percent: number): string {
@@ -113,6 +115,7 @@ export function HomeScreen({
   reportStatus,
 }: HomeScreenProps) {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
+  const today = useCurrentCalendarDate();
   const todayTotal = sumExpenses(getTodayExpenses(expenses));
   const weekExpenses = getWeekExpenses(expenses);
   const weekTotal = sumExpenses(weekExpenses);
@@ -128,6 +131,10 @@ export function HomeScreen({
   const monthWeeklyStats = getMonthWeeklyBudgetStats(expenses, monthlySpendingLimit);
   const selectedWeek = monthWeeklyStats.find((week) => week.index === selectedWeekIndex) ?? null;
   const normalizedSavingsGoal = Math.min(settings.savingsGoal, workingBudget);
+  const nextScheduledIncomeDate = getNextScheduledIncomeDate(settings, incomeEntries, today);
+  const nextScheduledIncomeCaption = nextScheduledIncomeDate
+    ? `Ближайшая выплата: ${formatScheduledIncomeDate(nextScheduledIncomeDate, today)}`
+    : 'Настрой даты выплат';
   const monthlyDynamicsCaption = hasWorkingBudget
     ? isMonthOverBudget
       ? `На расходы превышено на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
@@ -216,7 +223,7 @@ export function HomeScreen({
             <p>
               {isMonthOverBudget
                 ? `На расходы: ${formatMoney(monthlySpendingLimit, settings.currency)}`
-                : `До конца месяца: ${formatDaysLeft(monthlyStats.daysLeft)}`}
+                : nextScheduledIncomeCaption}
             </p>
             {normalizedSavingsGoal > 0 ? <p>Отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p> : null}
           </div>

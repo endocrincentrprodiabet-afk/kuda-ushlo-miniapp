@@ -87,7 +87,7 @@ export function ReserveGoalModal({
     }
 
     if (parsedAllocation > parsedTarget || parsedAllocation > availableReserve) {
-      setError('Распределение превышает доступный запас.');
+      setError('Распределение превышает доступную сумму.');
       return;
     }
 
@@ -114,7 +114,7 @@ export function ReserveGoalModal({
         aria-labelledby="reserve-goal-modal-title"
       >
         <div className="confirm-modal__head">
-          <p className="subtitle">Цели запаса</p>
+          <p className="subtitle">Цели в сейфе</p>
           <h2 id="reserve-goal-modal-title">{dialogTitle}</h2>
         </div>
 
@@ -144,7 +144,7 @@ export function ReserveGoalModal({
 
         <div className="reserve-allocation-control">
           <label className="confirm-modal__field reserve-modal__field">
-            <span>Распределить из запаса</span>
+            <span>Распределить из свободной суммы</span>
             <input
               inputMode="numeric"
               max={allocationMaximum}
@@ -155,7 +155,7 @@ export function ReserveGoalModal({
             />
           </label>
           <input
-            aria-label="Распределить из запаса"
+            aria-label="Распределить из свободной суммы"
             className="reserve-allocation-slider"
             disabled={allocationMaximum <= 0}
             max={allocationMaximum}

@@ -263,7 +263,7 @@ export function ReserveScreen({
           >
             <div className="confirm-modal__head">
               <p className="subtitle">Запас месяца</p>
-              <h2 id="reserve-closure-title">Зафиксировать запас?</h2>
+              <h2 id="reserve-closure-title">Зафиксировать итог месяца?</h2>
             </div>
             <p className="reserve-modal__text">
               Для фиксации осталось: {formatMoney(suggestedClosureAmount, settings.currency)}
@@ -303,8 +303,8 @@ export function ReserveScreen({
       <main className="screen reserve-screen">
         <header className="top-header">
           <div>
-            <p className="subtitle">Бюджет на цели</p>
-            <h1>Запас</h1>
+            <p className="subtitle">Накопления и цели</p>
+            <h1>Сейф</h1>
           </div>
         </header>
 
@@ -314,13 +314,13 @@ export function ReserveScreen({
           </Suspense>
         </ReserveCoreErrorBoundary>
 
-        <section className="card reserve-summary-card" aria-label="Сводка запаса">
+        <section className="card reserve-summary-card" aria-label="Сводка накоплений">
           <div>
-            <span>Общий запас</span>
+            <span>Всего накоплено</span>
             <AnimatedMoney amount={reserveTotal} currency={settings.currency} />
           </div>
           <div>
-            <span>Распределено</span>
+            <span>По целям</span>
             <AnimatedMoney amount={allocatedTotal} currency={settings.currency} />
           </div>
           <div>
@@ -329,22 +329,25 @@ export function ReserveScreen({
           </div>
           <button
             className="secondary-button reserve-summary-card__top-up"
+            aria-label="Пополнить сейф"
             onClick={() => onOpenReserveTopUp(null)}
             type="button"
           >
-            Пополнить запас
+            Пополнить сейф
           </button>
         </section>
 
-        <section className="card reserve-goals-card">
+        <section className={`card reserve-goals-card${reserveGoals.length ? '' : ' reserve-goals-card--empty'}`}>
           <div className="reserve-goals-card__header">
             <div className="section-title">
               <h2>Цели</h2>
               <span>{reserveGoals.length} / {MAX_RESERVE_GOALS}</span>
             </div>
-            <button className="secondary-button reserve-goals-card__add" disabled={atGoalLimit} onClick={handleOpenAddGoal} type="button">
-              Добавить цель
-            </button>
+            {reserveGoals.length ? (
+              <button className="secondary-button reserve-goals-card__add" disabled={atGoalLimit} onClick={handleOpenAddGoal} type="button">
+                Добавить цель
+              </button>
+            ) : null}
           </div>
 
           {atGoalLimit ? <p className="reserve-goals-card__limit">Можно создать до 6 целей.</p> : null}
@@ -383,7 +386,21 @@ export function ReserveScreen({
               })}
             </div>
           ) : (
-            <p className="empty-state">Добавь первую цель, чтобы создать сферу.</p>
+            <div className="reserve-goals-empty">
+              <p className="reserve-goals-empty__kicker">Первая цель</p>
+              <h3>Создай цель</h3>
+              <p className="reserve-goals-empty__description">
+                Задай сумму — в сейфе появится новая сфера.
+              </p>
+              <button
+                aria-label="Добавить первую цель"
+                className="primary-button reserve-goals-empty__action"
+                onClick={handleOpenAddGoal}
+                type="button"
+              >
+                Добавить цель
+              </button>
+            </div>
           )}
 
           {selectedGoal ? (
@@ -415,6 +432,11 @@ export function ReserveScreen({
                 <button className="delete-button" onClick={() => setGoalToDelete(selectedGoal)} type="button">Удалить</button>
               </div>
             </article>
+          ) : reserveGoals.length ? (
+            <div className="reserve-goals-select-state" role="status">
+              <h3>Выбери цель</h3>
+              <p>Нажми на карточку или сферу, чтобы посмотреть детали.</p>
+            </div>
           ) : null}
         </section>
 
@@ -464,13 +486,13 @@ export function ReserveScreen({
               </>
             )
           ) : (
-            <p className="empty-state">Настрой месячный бюджет, чтобы фиксировать запас.</p>
+            <p className="empty-state">Настрой месячный бюджет, чтобы фиксировать накопления.</p>
           )}
         </section>
 
         <section className="card reserve-history-card">
           <div className="section-title">
-            <h2>История запаса</h2>
+            <h2>История пополнений</h2>
             <span>{reserveHistoryItems.length ? `${reserveHistoryItems.length}` : ''}</span>
           </div>
           {reserveHistoryItems.length ? (
@@ -506,7 +528,7 @@ export function ReserveScreen({
               )}
             </div>
           ) : (
-            <p className="empty-state">Операций запаса пока нет</p>
+            <p className="empty-state">Пополнений и фиксаций пока нет</p>
           )}
         </section>
       </main>

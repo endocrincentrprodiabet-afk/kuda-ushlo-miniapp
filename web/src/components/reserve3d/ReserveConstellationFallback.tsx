@@ -46,15 +46,15 @@ export function ReserveConstellationFallback({
             })}
           </div>
         ) : (
-          <p>Добавь цель, чтобы собрать свою систему накоплений.</p>
+          <p>Цели появятся вокруг свободной суммы.</p>
         )}
       </div>
 
       <div className="reserve-core__content reserve-constellation__content">
-        <p className="reserve-core__label">Общий запас</p>
+        <p className="reserve-core__label">Всего накоплено</p>
         <AnimatedMoney amount={reserveTotal} className="reserve-core__amount" currency={currency} debounceMs={180} />
         <div className="reserve-constellation__totals">
-          <span>Распределено: {formatMoney(allocatedTotal, currency)}</span>
+          <span>По целям: {formatMoney(allocatedTotal, currency)}</span>
           <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
         </div>
         {selectedGoal ? (
@@ -75,11 +75,7 @@ export function ReserveConstellationFallback({
               Удалить
             </button>
           </div>
-        ) : (
-          <button className="secondary-button" disabled={goals.length >= 6} onClick={onAddGoal} type="button">
-            Добавить цель
-          </button>
-        )}
+        ) : null}
       </div>
     </section>
   );

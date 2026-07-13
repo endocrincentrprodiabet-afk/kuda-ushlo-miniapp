@@ -26,7 +26,7 @@ export function ReserveCoreFallback({
         </div>
       </div>
       <div className="reserve-core__content">
-        <p className="reserve-core__label">Накоплено</p>
+        <p className="reserve-core__label">Всего накоплено</p>
         <AnimatedMoney amount={reserveTotal} className="reserve-core__amount" currency={currency} debounceMs={180} />
         {targetAmount > 0 ? (
           <div className="reserve-core__status">

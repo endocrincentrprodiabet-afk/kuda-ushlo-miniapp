@@ -5,20 +5,48 @@ const AUTO_INCOME_NOTE = 'Автоначисление';
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function isDateInputValue(value: string): boolean {
-  return datePattern.test(value);
+  if (!datePattern.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function parseDateInputValue(value: string): Date | null {
+  if (!isDateInputValue(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
+function getLocalDayStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getMonthlyOccurrence(year: number, month: number, day: number): Date {
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+  return new Date(year, month, Math.min(day, lastDayOfMonth));
 }
 
 function addMonths(value: string, months: number): string {
-  const date = new Date(`${value}T00:00:00`);
-  const originalDay = date.getDate();
+  const anchor = parseDateInputValue(value);
 
-  date.setMonth(date.getMonth() + months);
-
-  if (date.getDate() !== originalDay) {
-    date.setDate(0);
-  }
-
-  return toDateInputValue(date);
+  return anchor
+    ? toDateInputValue(
+        getMonthlyOccurrence(
+          anchor.getFullYear(),
+          anchor.getMonth() + months,
+          anchor.getDate(),
+        ),
+      )
+    : value;
 }
 
 function getDueMonthlyDates(anchorDate: string, today: string): string[] {
@@ -41,6 +69,77 @@ function getDueMonthlyDates(anchorDate: string, today: string): string[] {
 
 export function getAutoIncomeId(date: string): string {
   return `auto-income-${date}`;
+}
+
+function hasAutoIncomeForDate(incomeEntries: IncomeEntry[], date: string): boolean {
+  const autoIncomeId = getAutoIncomeId(date);
+
+  return incomeEntries.some(
+    (entry) =>
+      entry.id === autoIncomeId ||
+      (entry.source === 'auto' && entry.type === 'salary' && entry.date === date),
+  );
+}
+
+function getNextMonthlyOccurrence(anchorValue: string, date: Date, includeDate: boolean): Date | null {
+  const anchor = parseDateInputValue(anchorValue);
+
+  if (!anchor) {
+    return null;
+  }
+
+  const dayStart = getLocalDayStart(date);
+
+  if (anchor > dayStart) {
+    return anchor;
+  }
+
+  const currentMonthOccurrence = getMonthlyOccurrence(
+    dayStart.getFullYear(),
+    dayStart.getMonth(),
+    anchor.getDate(),
+  );
+
+  if (currentMonthOccurrence > dayStart || (includeDate && currentMonthOccurrence.getTime() === dayStart.getTime())) {
+    return currentMonthOccurrence;
+  }
+
+  return getMonthlyOccurrence(
+    dayStart.getFullYear(),
+    dayStart.getMonth() + 1,
+    anchor.getDate(),
+  );
+}
+
+export function getNextScheduledIncomeDate(
+  settings: Pick<
+    Settings,
+    'incomeFrequency' | 'nextIncomeDate' | 'secondIncomeDate' | 'regularIncomeAmount'
+  >,
+  incomeEntries: IncomeEntry[],
+  date = new Date(),
+): Date | null {
+  if (settings.regularIncomeAmount <= 0) {
+    return null;
+  }
+
+  const today = getLocalDayStart(date);
+  const todayValue = toDateInputValue(today);
+  const includeToday = !hasAutoIncomeForDate(incomeEntries, todayValue);
+  const anchorValues =
+    settings.incomeFrequency === 'biweekly'
+      ? [settings.nextIncomeDate, settings.secondIncomeDate]
+      : [settings.nextIncomeDate];
+  const candidates = anchorValues
+    .map((anchorValue) => getNextMonthlyOccurrence(anchorValue, today, includeToday))
+    .filter((candidate): candidate is Date => candidate !== null)
+    .sort((first, second) => first.getTime() - second.getTime());
+
+  if (candidates.length !== anchorValues.length) {
+    return null;
+  }
+
+  return candidates[0] ?? null;
 }
 
 export function getDueIncomeDates(settings: Settings, date = new Date()): string[] {
@@ -71,13 +170,9 @@ export function applyAutoIncomeEntries(
     return incomeEntries;
   }
 
-  const existingIds = new Set(incomeEntries.map((entry) => entry.id));
-  const existingAutoDates = new Set(
-    incomeEntries.filter((entry) => entry.source === 'auto' && entry.type === 'salary').map((entry) => entry.date),
-  );
   const createdAt = new Date().toISOString();
   const newEntries = dueDates
-    .filter((incomeDate) => !existingIds.has(getAutoIncomeId(incomeDate)) && !existingAutoDates.has(incomeDate))
+    .filter((incomeDate) => !hasAutoIncomeForDate(incomeEntries, incomeDate))
     .map(
       (incomeDate): IncomeEntry => ({
         id: getAutoIncomeId(incomeDate),

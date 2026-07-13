@@ -183,7 +183,7 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
       </div>
 
       <div className="reserve-core__content reserve-constellation__content">
-        <p className="reserve-core__label">Общий запас</p>
+        <p className="reserve-core__label">Всего накоплено</p>
         <AnimatedMoney
           amount={reserveTotal}
           className="reserve-core__amount"
@@ -192,11 +192,11 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
           durationMs={reducedMotion ? 0 : 380}
         />
         <div className="reserve-constellation__totals">
-          <span>Распределено: {formatMoney(allocatedTotal, currency)}</span>
+          <span>По целям: {formatMoney(allocatedTotal, currency)}</span>
           <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
         </div>
-        {!goals.length ? <p className="reserve-core__empty">Добавь цель, чтобы собрать свою систему накоплений.</p> : null}
-        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или фиксации месяца здесь появится реальный запас.</p> : null}
+        {!goals.length ? <p className="reserve-core__empty">Цели появятся вокруг свободной суммы.</p> : null}
+        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или фиксации месяца здесь появится сумма в сейфе.</p> : null}
       </div>
     </section>
   );

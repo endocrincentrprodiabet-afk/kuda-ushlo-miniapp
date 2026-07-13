@@ -54,6 +54,26 @@ export function formatDayLabel(value: string): string {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+export function formatScheduledIncomeDate(date: Date, today = new Date()): string {
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const tomorrow = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 1);
+
+  if (dayStart.getTime() === todayStart.getTime()) {
+    return 'сегодня';
+  }
+
+  if (dayStart.getTime() === tomorrow.getTime()) {
+    return 'завтра';
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: dayStart.getFullYear() === todayStart.getFullYear() ? undefined : 'numeric',
+  }).format(dayStart);
+}
+
 function formatWeekRangePart(date: Date, includeMonth: boolean): string {
   return new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric',

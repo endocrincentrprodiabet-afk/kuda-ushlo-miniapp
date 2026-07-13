@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const DEFAULT_RESERVE_GOAL: LegacyReserveGoal = {
-  title: 'Неприкосновенный запас',
+  title: 'Финансовая подушка',
   targetAmount: 0,
 };
 

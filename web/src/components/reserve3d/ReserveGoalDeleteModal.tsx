@@ -43,7 +43,7 @@ export function ReserveGoalDeleteModal({ currency, goal, onCancel, onConfirm }: 
           <h2 id="delete-reserve-goal-title">Удалить цель?</h2>
         </div>
         <p className="reserve-modal__text">
-          Распределённые на неё {formatMoney(goal.allocatedAmount, currency)} вернутся в свободный запас.
+          Распределённые на неё {formatMoney(goal.allocatedAmount, currency)} вернутся в свободную сумму.
         </p>
         <div className="confirm-modal__actions">
           <button className="secondary-button" onClick={onCancel} type="button">

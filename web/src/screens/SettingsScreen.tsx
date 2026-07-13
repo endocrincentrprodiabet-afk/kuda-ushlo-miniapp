@@ -6,8 +6,9 @@ import {
   getPlannedDailyTargetFromWorkingBudget,
   getWorkingBudget,
 } from '../lib/calculations';
-import { formatDate, toDateInputValue } from '../lib/date';
+import { formatScheduledIncomeDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
+import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
 import type { IncomeEntry, Settings } from '../types';
 
 type SettingsScreenProps = {
@@ -35,31 +36,8 @@ function snapSavingsGoal(value: number, workingBudget: number): number {
   return Math.min(rounded, workingBudget);
 }
 
-function addMonths(value: string, months: number): string {
-  const date = new Date(`${value}T00:00:00`);
-  const day = date.getDate();
-
-  date.setMonth(date.getMonth() + months);
-
-  if (date.getDate() !== day) {
-    date.setDate(0);
-  }
-
-  return toDateInputValue(date);
-}
-
-function getNextIncomeAfter(settings: Pick<Settings, 'incomeFrequency' | 'nextIncomeDate' | 'secondIncomeDate'>): string {
-  if (settings.incomeFrequency !== 'biweekly') {
-    return addMonths(settings.nextIncomeDate, 1);
-  }
-
-  let candidate = addMonths(settings.nextIncomeDate, 1);
-
-  while (candidate <= settings.secondIncomeDate) {
-    candidate = addMonths(candidate, 1);
-  }
-
-  return candidate;
+function getDayAfter(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 }
 
 function getSavingsWarningContent(savingsGoal: number, workingBudget: number): { title: string; text: string } {
@@ -67,7 +45,7 @@ function getSavingsWarningContent(savingsGoal: number, workingBudget: number): {
 
   if (savingsPercent >= 95) {
     return {
-      title: 'Почти все деньги уходят в запас',
+      title: 'Почти все деньги уходят в сейф',
       text: 'На расходы почти ничего не останется. Если это не случайность, можно сохранить такой план.',
     };
   }
@@ -126,7 +104,20 @@ export function SettingsScreen({
   const monthlySpendingLimit = getMonthlySpendingLimitFromWorkingBudget(workingBudget, clampedSavingsGoal);
   const plannedDailyTarget = getPlannedDailyTargetFromWorkingBudget(workingBudget, clampedSavingsGoal);
   const savingsPercent = workingBudget > 0 ? (clampedSavingsGoal / workingBudget) * 100 : 0;
-  const nextIncomeAfter = getNextIncomeAfter(previewSettings);
+  const today = new Date();
+  const nextIncomeDatePreview = getNextScheduledIncomeDate(previewSettings, incomeEntries, today);
+  const secondIncomeDatePreview = nextIncomeDatePreview
+    ? getNextScheduledIncomeDate(previewSettings, [], getDayAfter(nextIncomeDatePreview))
+    : null;
+  const nextIncomeAfter = getNextScheduledIncomeDate(
+    previewSettings,
+    [],
+    getDayAfter(
+      incomeFrequency === 'biweekly' && secondIncomeDatePreview
+        ? secondIncomeDatePreview
+        : nextIncomeDatePreview ?? today,
+    ),
+  );
   const savingsWarningContent = pendingSettings
     ? getSavingsWarningContent(pendingSettings.savingsGoal, getWorkingBudget(pendingSettings, incomeEntries))
     : null;
@@ -318,7 +309,7 @@ export function SettingsScreen({
                   }}
                   type="button"
                 >
-                  Раз в 2 недели
+                  Два раза в месяц
                 </button>
               </div>
             </fieldset>
@@ -364,9 +355,19 @@ export function SettingsScreen({
             </label>
 
             <div className="income-schedule-note">
-              <span>Ближайшая выплата: {formatDate(nextIncomeDate)}</span>
-              {incomeFrequency === 'biweekly' ? <span>Вторая ближайшая выплата: {formatDate(secondIncomeDate)}</span> : null}
-              <span>Следующая после неё: {formatDate(nextIncomeAfter)}</span>
+              <span>
+                Ближайшая выплата:{' '}
+                {nextIncomeDatePreview ? formatScheduledIncomeDate(nextIncomeDatePreview, today) : 'не настроена'}
+              </span>
+              {incomeFrequency === 'biweekly' ? (
+                <span>
+                  Вторая ближайшая выплата:{' '}
+                  {secondIncomeDatePreview ? formatScheduledIncomeDate(secondIncomeDatePreview, today) : 'не настроена'}
+                </span>
+              ) : null}
+              <span>
+                Следующая после неё: {nextIncomeAfter ? formatScheduledIncomeDate(nextIncomeAfter, today) : 'не настроена'}
+              </span>
               <p>Начисления создаются автоматически, когда дата выплаты наступила.</p>
             </div>
 
@@ -398,12 +399,17 @@ export function SettingsScreen({
                 />
                 <p>Сумма, которую хочешь не тратить</p>
                 <p className="savings-panel__helper">
-                  План не пополняет запас автоматически. Фактические деньги добавляются через «Пополнить запас».
+                  План не пополняет сейф автоматически. Фактические деньги добавляются через «Пополнить сейф».
                 </p>
               </div>
 
-              <button className="secondary-button savings-panel__top-up" onClick={onOpenReserveTopUp} type="button">
-                Пополнить запас
+              <button
+                aria-label="Пополнить сейф"
+                className="secondary-button savings-panel__top-up"
+                onClick={onOpenReserveTopUp}
+                type="button"
+              >
+                Пополнить сейф
               </button>
 
               <div className="savings-panel__control">
@@ -481,7 +487,7 @@ export function SettingsScreen({
               <h2 id="clear-data-title">Очистить все данные?</h2>
             </div>
 
-            <p className="confirm-modal__warning">Будут удалены все расходы, поступления, запас, цели и настройки. Это действие нельзя отменить.</p>
+            <p className="confirm-modal__warning">Будут удалены все расходы, поступления, накопления, цели и настройки. Это действие нельзя отменить.</p>
 
             <label className="confirm-modal__field">
               <span>Чтобы подтвердить, введите: ОЧИСТИТЬ</span>
