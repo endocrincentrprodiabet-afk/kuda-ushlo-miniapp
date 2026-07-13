@@ -66,6 +66,15 @@ export type ReserveClosure = {
   confirmedAt: string;
 };
 
+export type ReserveTopUp = {
+  id: string;
+  amount: number;
+  date: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Screen = 'home' | 'add' | 'history' | 'reserve' | 'settings';
 
 export type HistoryFilter = 'today' | 'week' | 'all';

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { ReserveCoreErrorBoundary } from '../components/reserve3d/ReserveCoreErrorBoundary';
@@ -11,7 +11,11 @@ import {
   getGoalProgress,
   getMonthlySpendingLimit,
   getMonthExpenses,
+  getReserveClosuresTotal,
+  getReserveHistoryItems,
   getReserveTotal,
+  getReserveTopUpsForMonth,
+  getReserveTopUpsTotal,
   getSuggestedMonthlySavings,
   getUnallocatedReserve,
   getWorkingBudget,
@@ -21,7 +25,7 @@ import {
 import { MAX_RESERVE_GOALS } from '../lib/constants';
 import { formatMoney } from '../lib/format';
 import type { ReserveConstellationData } from '../lib/reserveVisual';
-import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
+import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, ReserveTopUp, Settings } from '../types';
 
 const ReserveConstellation3D = lazy(() => import('../components/reserve3d/ReserveConstellation3D'));
 
@@ -31,8 +35,11 @@ type ReserveScreenProps = {
   incomeEntries: IncomeEntry[];
   reserveGoals: ReserveGoal[];
   reserveClosures: ReserveClosure[];
+  reserveTopUps: ReserveTopUp[];
   onSaveReserveGoals: (goals: ReserveGoal[]) => void;
   onSaveReserveClosures: (closures: ReserveClosure[]) => void;
+  onOpenReserveTopUp: (topUp: ReserveTopUp | null) => void;
+  onDeleteReserveTopUp: (topUp: ReserveTopUp) => void;
 };
 
 function parseMoneyInput(value: string): number {
@@ -48,6 +55,14 @@ function getMonthLabel(monthKey: string): string {
     month: 'long',
     year: 'numeric',
   }).format(date);
+}
+
+function getHistoryDateLabel(value: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
 }
 
 function formatProgressPercent(value: number): string {
@@ -68,15 +83,18 @@ export function ReserveScreen({
   incomeEntries,
   reserveGoals,
   reserveClosures,
+  reserveTopUps,
   onSaveReserveGoals,
   onSaveReserveClosures,
+  onOpenReserveTopUp,
+  onDeleteReserveTopUp,
 }: ReserveScreenProps) {
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(() => reserveGoals[0]?.id ?? null);
   const [goalEditor, setGoalEditor] = useState<ReserveGoal | null | undefined>(undefined);
   const [goalToDelete, setGoalToDelete] = useState<ReserveGoal | null>(null);
   const [closureModalOpen, setClosureModalOpen] = useState(false);
   const [closureAmount, setClosureAmount] = useState('');
-  const reserveTotal = getReserveTotal(reserveClosures);
+  const reserveTotal = getReserveTotal(reserveClosures, reserveTopUps);
   const allocatedTotal = getAllocatedReserveTotal(reserveGoals);
   const unallocatedReserve = getUnallocatedReserve(reserveTotal, reserveGoals);
   const selectedGoal = reserveGoals.find((goal) => goal.id === selectedGoalId) ?? null;
@@ -84,15 +102,16 @@ export function ReserveScreen({
   const currentMonthTotal = sumExpenses(getMonthExpenses(expenses));
   const workingBudget = getWorkingBudget(settings, incomeEntries);
   const spendingLimit = getMonthlySpendingLimit(settings, incomeEntries);
-  const actualSuggested = getSuggestedMonthlySavings(workingBudget, currentMonthTotal);
+  const grossSuggestedSavings = getSuggestedMonthlySavings(workingBudget, currentMonthTotal);
   const plannedSavings = Math.min(settings.savingsGoal, workingBudget);
   const currentClosure = reserveClosures.find((closure) => closure.month === currentMonthKey) ?? null;
-  const sortedClosures = useMemo(
-    () => [...reserveClosures].sort((first, second) => second.month.localeCompare(first.month)),
-    [reserveClosures],
-  );
-  const displayedMonthlySavings = currentClosure?.actualSaved ?? actualSuggested;
-  const planDiff = displayedMonthlySavings - plannedSavings;
+  const currentMonthTopUps = getReserveTopUpsForMonth(reserveTopUps, currentMonthKey);
+  const currentMonthTopUpsTotal = getReserveTopUpsTotal(currentMonthTopUps);
+  const suggestedClosureAmount = Math.max(grossSuggestedSavings - currentMonthTopUpsTotal, 0);
+  const actualSavedForMonth =
+    getReserveClosuresTotal(currentClosure ? [currentClosure] : []) + currentMonthTopUpsTotal;
+  const reserveHistoryItems = getReserveHistoryItems(reserveClosures, reserveTopUps);
+  const planDiff = actualSavedForMonth - plannedSavings;
   const planDiffAbs = Math.abs(planDiff);
   const planInsightText =
     planDiff > 0
@@ -190,7 +209,7 @@ export function ReserveScreen({
   }
 
   function handleOpenClosureModal() {
-    setClosureAmount(String(currentClosure?.actualSaved ?? actualSuggested));
+    setClosureAmount(String(currentClosure?.actualSaved ?? suggestedClosureAmount));
     setClosureModalOpen(true);
   }
 
@@ -247,8 +266,13 @@ export function ReserveScreen({
               <h2 id="reserve-closure-title">Зафиксировать запас?</h2>
             </div>
             <p className="reserve-modal__text">
-              По расчёту ты можешь отложить: {formatMoney(actualSuggested, settings.currency)}
+              Для фиксации осталось: {formatMoney(suggestedClosureAmount, settings.currency)}
             </p>
+            {currentMonthTopUpsTotal > 0 ? (
+              <p className="reserve-modal__text">
+                Пополнения за месяц уже учтены: {formatMoney(currentMonthTopUpsTotal, settings.currency)}
+              </p>
+            ) : null}
             <label className="confirm-modal__field reserve-modal__field">
               <span>Сумма</span>
               <input
@@ -303,6 +327,13 @@ export function ReserveScreen({
             <span>Свободно</span>
             <AnimatedMoney amount={unallocatedReserve} currency={settings.currency} />
           </div>
+          <button
+            className="secondary-button reserve-summary-card__top-up"
+            onClick={() => onOpenReserveTopUp(null)}
+            type="button"
+          >
+            Пополнить запас
+          </button>
         </section>
 
         <section className="card reserve-goals-card">
@@ -402,8 +433,8 @@ export function ReserveScreen({
                 </div>
                 <div className="reserve-fix-metrics">
                   <div className="reserve-fix-row">
-                    <span>Отложено</span>
-                    <strong className="reserve-fix-value">{formatMoney(currentClosure.actualSaved, settings.currency)}</strong>
+                    <span>Отложено за месяц</span>
+                    <strong className="reserve-fix-value">{formatMoney(actualSavedForMonth, settings.currency)}</strong>
                   </div>
                   <div className="reserve-fix-row">
                     <span>План</span>
@@ -418,8 +449,8 @@ export function ReserveScreen({
                 <div className="reserve-fix-summary">
                   <div className="reserve-fix-metrics">
                     <div className="reserve-fix-row">
-                      <span>Отложено</span>
-                      <AnimatedMoney amount={actualSuggested} className="reserve-fix-value" currency={settings.currency} debounceMs={180} />
+                      <span>Отложено за месяц</span>
+                      <AnimatedMoney amount={actualSavedForMonth} className="reserve-fix-value" currency={settings.currency} debounceMs={180} />
                     </div>
                     <div className="reserve-fix-row">
                       <span>План</span>
@@ -440,22 +471,42 @@ export function ReserveScreen({
         <section className="card reserve-history-card">
           <div className="section-title">
             <h2>История запаса</h2>
-            <span>{sortedClosures.length ? `${sortedClosures.length}` : ''}</span>
+            <span>{reserveHistoryItems.length ? `${reserveHistoryItems.length}` : ''}</span>
           </div>
-          {sortedClosures.length ? (
+          {reserveHistoryItems.length ? (
             <div className="reserve-history-list">
-              {sortedClosures.map((closure) => (
-                <article className="reserve-history-item" key={closure.id}>
-                  <div>
-                    <h3>{getMonthLabel(closure.month)}</h3>
-                    <span>План: {formatMoney(closure.plannedSavings, settings.currency)}</span>
-                  </div>
-                  <strong>{formatMoney(closure.actualSaved, settings.currency)}</strong>
-                </article>
-              ))}
+              {reserveHistoryItems.map((item) =>
+                item.type === 'topUp' ? (
+                  <article className="reserve-history-item reserve-history-item--top-up" key={`top-up-${item.id}`}>
+                    <div>
+                      <span className="reserve-history-item__type">Пополнение</span>
+                      <h3>{getHistoryDateLabel(item.topUp.date)}</h3>
+                      {item.topUp.note ? <span>{item.topUp.note}</span> : null}
+                      <div className="reserve-history-item__actions">
+                        <button className="expense-action-button" onClick={() => onOpenReserveTopUp(item.topUp)} type="button">
+                          Изменить
+                        </button>
+                        <button className="delete-button" onClick={() => onDeleteReserveTopUp(item.topUp)} type="button">
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                    <strong>+{formatMoney(item.amount, settings.currency)}</strong>
+                  </article>
+                ) : (
+                  <article className="reserve-history-item reserve-history-item--closure" key={`closure-${item.id}`}>
+                    <div>
+                      <span className="reserve-history-item__type">Фиксация месяца</span>
+                      <h3>{getMonthLabel(item.closure.month)}</h3>
+                      <span>План: {formatMoney(item.closure.plannedSavings, settings.currency)}</span>
+                    </div>
+                    <strong>+{formatMoney(item.amount, settings.currency)}</strong>
+                  </article>
+                ),
+              )}
             </div>
           ) : (
-            <p className="empty-state">Пополнений пока нет</p>
+            <p className="empty-state">Операций запаса пока нет</p>
           )}
         </section>
       </main>

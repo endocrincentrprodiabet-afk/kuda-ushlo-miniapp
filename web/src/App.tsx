@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type TouchEvent } from 'react';
 import { BottomNav } from './components/BottomNav';
+import { ReserveTopUpDeleteModal } from './components/ReserveTopUpDeleteModal';
+import { ReserveTopUpModal, type ReserveTopUpValues } from './components/ReserveTopUpModal';
 import { SplashScreen } from './components/SplashScreen';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
@@ -8,7 +10,11 @@ import { MoneyFlowScreen } from './screens/MoneyFlowScreen';
 import { ReserveScreen } from './screens/ReserveScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { DEFAULT_SETTINGS } from './lib/constants';
-import { getReserveTotal, reconcileReserveGoalAllocations } from './lib/calculations';
+import {
+  getAllocatedReserveTotal,
+  getReserveTotal,
+  reconcileReserveGoalAllocations,
+} from './lib/calculations';
 import { formatDate } from './lib/date';
 import { formatMoney } from './lib/format';
 import {
@@ -17,20 +23,39 @@ import {
   loadExpenses,
   loadReserveClosures,
   loadReserveGoals,
+  loadReserveTopUps,
   loadSettings,
   saveExpenses,
   saveIncomeEntries,
   saveReserveClosures,
   saveReserveGoals,
+  saveReserveTopUps,
   saveSettings,
 } from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
 import { applyAutoIncomeEntries } from './lib/incomeSchedule';
-import type { Expense, HistoryFilter, IncomeEntry, ReserveClosure, ReserveGoal, Screen, Settings } from './types';
+import type {
+  Expense,
+  HistoryFilter,
+  IncomeEntry,
+  ReserveClosure,
+  ReserveGoal,
+  ReserveTopUp,
+  Screen,
+  Settings,
+} from './types';
 
 const screenOrder: Screen[] = ['home', 'add', 'history', 'reserve', 'settings'];
 const swipeThreshold = 70;
 type ActiveDetail = 'moneyFlow' | null;
+
+function createReserveTopUpId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `reserve-top-up-${crypto.randomUUID()}`;
+  }
+
+  return `reserve-top-up-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function isSwipeBlocked(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -53,8 +78,9 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>(() => loadIncomeEntries());
   const [reserveClosures, setReserveClosures] = useState<ReserveClosure[]>(() => loadReserveClosures());
+  const [reserveTopUps, setReserveTopUps] = useState<ReserveTopUp[]>(() => loadReserveTopUps());
   const [reserveGoals, setReserveGoals] = useState<ReserveGoal[]>(() =>
-    loadReserveGoals(getReserveTotal(reserveClosures)),
+    loadReserveGoals(getReserveTotal(reserveClosures, reserveTopUps)),
   );
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
@@ -64,6 +90,9 @@ export default function App() {
   const [editingIncomeEntry, setEditingIncomeEntry] = useState<IncomeEntry | null>(null);
   const [addScreenMode, setAddScreenMode] = useState<'expense' | 'income'>('expense');
   const [editReturnScreen, setEditReturnScreen] = useState<Screen>('history');
+  const [reserveTopUpEditor, setReserveTopUpEditor] = useState<ReserveTopUp | null | undefined>(undefined);
+  const [reserveTopUpToDelete, setReserveTopUpToDelete] = useState<ReserveTopUp | null>(null);
+  const [appMessage, setAppMessage] = useState('');
   const swipeStartRef = useRef<{ x: number; y: number; blocked: boolean } | null>(null);
   const homeScrollPositionRef = useRef(0);
   const restoreHomeScrollRef = useRef(false);
@@ -116,7 +145,21 @@ export default function App() {
     saveReserveClosures(reserveClosures);
   }, [reserveClosures]);
 
-  const reserveTotal = getReserveTotal(reserveClosures);
+  useEffect(() => {
+    saveReserveTopUps(reserveTopUps);
+  }, [reserveTopUps]);
+
+  useEffect(() => {
+    if (!appMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setAppMessage(''), 2400);
+
+    return () => window.clearTimeout(timer);
+  }, [appMessage]);
+
+  const reserveTotal = getReserveTotal(reserveClosures, reserveTopUps);
 
   useEffect(() => {
     setReserveGoals((current) => reconcileReserveGoalAllocations(current, reserveTotal));
@@ -209,6 +252,49 @@ export default function App() {
     setScreen('add');
   }
 
+  function handleOpenReserveTopUp(topUp: ReserveTopUp | null = null) {
+    setReserveTopUpEditor(topUp);
+  }
+
+  function handleSaveReserveTopUp(values: ReserveTopUpValues) {
+    const now = new Date().toISOString();
+    const nextTopUp: ReserveTopUp = reserveTopUpEditor
+      ? {
+          ...reserveTopUpEditor,
+          ...values,
+          updatedAt: now,
+        }
+      : {
+          id: createReserveTopUpId(),
+          ...values,
+          createdAt: now,
+          updatedAt: now,
+        };
+    const nextTopUps = reserveTopUpEditor
+      ? reserveTopUps.map((topUp) => (topUp.id === reserveTopUpEditor.id ? nextTopUp : topUp))
+      : [nextTopUp, ...reserveTopUps];
+    const nextReserveTotal = getReserveTotal(reserveClosures, nextTopUps);
+
+    setReserveTopUps(nextTopUps);
+    setReserveGoals((current) => reconcileReserveGoalAllocations(current, nextReserveTotal));
+    setReserveTopUpEditor(undefined);
+    setAppMessage(reserveTopUpEditor ? 'Пополнение изменено.' : 'Запас пополнен.');
+  }
+
+  function handleConfirmDeleteReserveTopUp() {
+    if (!reserveTopUpToDelete) {
+      return;
+    }
+
+    const nextTopUps = reserveTopUps.filter((topUp) => topUp.id !== reserveTopUpToDelete.id);
+    const nextReserveTotal = getReserveTotal(reserveClosures, nextTopUps);
+
+    setReserveTopUps(nextTopUps);
+    setReserveGoals((current) => reconcileReserveGoalAllocations(current, nextReserveTotal));
+    setReserveTopUpToDelete(null);
+    setAppMessage('Пополнение удалено.');
+  }
+
   function handleNavigate(nextScreen: Screen) {
     setActiveDetail(null);
     if (nextScreen !== 'add') {
@@ -240,6 +326,10 @@ export default function App() {
     setIncomeEntries([]);
     setReserveGoals([]);
     setReserveClosures([]);
+    setReserveTopUps([]);
+    setReserveTopUpEditor(undefined);
+    setReserveTopUpToDelete(null);
+    setAppMessage('');
     setReportStatus('');
   }
 
@@ -352,6 +442,7 @@ export default function App() {
             incomeEntries={incomeEntries}
             onSaveSettings={setSettings}
             onOpenAddIncome={handleOpenAddIncome}
+            onOpenReserveTopUp={() => handleOpenReserveTopUp()}
             onClearData={handleClearData}
           />
         ) : null}
@@ -363,8 +454,11 @@ export default function App() {
             incomeEntries={incomeEntries}
             reserveGoals={reserveGoals}
             reserveClosures={reserveClosures}
+            reserveTopUps={reserveTopUps}
             onSaveReserveGoals={setReserveGoals}
             onSaveReserveClosures={setReserveClosures}
+            onOpenReserveTopUp={handleOpenReserveTopUp}
+            onDeleteReserveTopUp={setReserveTopUpToDelete}
           />
         ) : null}
 
@@ -374,6 +468,7 @@ export default function App() {
             incomeEntries={incomeEntries}
             onBack={handleCloseMoneyFlow}
             reserveClosures={reserveClosures}
+            reserveTopUps={reserveTopUps}
             settings={settings}
           />
         ) : null}
@@ -454,6 +549,36 @@ export default function App() {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {reserveTopUpEditor !== undefined ? (
+        <ReserveTopUpModal
+          currentTopUp={reserveTopUpEditor}
+          onClose={() => setReserveTopUpEditor(undefined)}
+          onSave={handleSaveReserveTopUp}
+        />
+      ) : null}
+
+      {reserveTopUpToDelete ? (
+        <ReserveTopUpDeleteModal
+          currency={settings.currency}
+          onCancel={() => setReserveTopUpToDelete(null)}
+          onConfirm={handleConfirmDeleteReserveTopUp}
+          topUp={reserveTopUpToDelete}
+          willAdjustAllocations={
+            getAllocatedReserveTotal(reserveGoals) >
+            getReserveTotal(
+              reserveClosures,
+              reserveTopUps.filter((topUp) => topUp.id !== reserveTopUpToDelete.id),
+            )
+          }
+        />
+      ) : null}
+
+      {appMessage ? (
+        <div className="app-toast" role="status" aria-live="polite">
+          {appMessage}
         </div>
       ) : null}
     </>

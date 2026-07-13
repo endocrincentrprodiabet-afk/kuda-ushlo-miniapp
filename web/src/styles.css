@@ -932,6 +932,31 @@ h2 {
   text-align: right;
 }
 
+.reserve-history-item > strong {
+  max-width: 46%;
+  overflow-wrap: anywhere;
+}
+
+.reserve-history-item__type {
+  color: var(--text) !important;
+  font-size: 12px !important;
+  font-weight: 650;
+}
+
+.reserve-history-item__actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 14px !important;
+  margin-top: 2px;
+}
+
+.reserve-history-item__actions .expense-action-button,
+.reserve-history-item__actions .delete-button {
+  justify-self: auto;
+  padding: 4px 0;
+}
+
 .reserve-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -950,8 +975,11 @@ h2 {
   width: min(100%, 488px);
   max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-color: rgba(245, 247, 250, 0.12);
   border-radius: 22px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .reserve-modal__field input {
@@ -962,6 +990,39 @@ h2 {
 .reserve-modal__field input:focus {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px rgba(215, 255, 23, 0.12);
+}
+
+.reserve-top-up-modal textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  border: 1px solid var(--accent-line);
+  border-radius: 13px;
+  padding: 12px 14px;
+  background: rgba(28, 34, 43, 0.88);
+  color: var(--text);
+  caret-color: var(--accent);
+  outline: none;
+}
+
+.reserve-top-up-modal textarea:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgba(215, 255, 23, 0.12);
+}
+
+.reserve-top-up-modal__error {
+  margin-top: -3px;
+}
+
+.reserve-top-up-modal button:focus-visible,
+.reserve-top-up-delete-modal button:focus-visible,
+.reserve-history-item__actions button:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 3px;
+}
+
+.reserve-top-up-delete-button {
+  box-shadow: none;
 }
 
 .month-balance-card--over .month-balance-track span,
@@ -1469,6 +1530,26 @@ h2 {
   line-height: 1.45;
 }
 
+.app-toast {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height) + 18px + env(safe-area-inset-bottom));
+  left: 16px;
+  z-index: 1100;
+  width: min(calc(100% - 32px), 488px);
+  margin: 0 auto;
+  border: 1px solid var(--accent-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(24, 32, 29, 0.96);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .primary-button,
 .secondary-button,
 .text-button,
@@ -1904,6 +1985,16 @@ input::placeholder {
   color: var(--muted-soft);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.savings-panel__head .savings-panel__helper {
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.savings-panel__top-up {
+  width: 100%;
 }
 
 .savings-panel__control {
@@ -2953,6 +3044,18 @@ input::placeholder {
 
 .reserve-summary-card > div:last-child strong {
   color: var(--accent);
+}
+
+.reserve-summary-card__top-up {
+  grid-column: 1 / -1;
+  min-height: 46px;
+  margin: 14px 8px 0;
+}
+
+.reserve-summary-card__top-up:focus-visible,
+.savings-panel__top-up:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 3px;
 }
 
 .reserve-goals-card {

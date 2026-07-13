@@ -1,7 +1,15 @@
 import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS, MAX_RESERVE_GOALS } from './constants';
 import { reconcileReserveGoalAllocations, sanitizeReserveGoal } from './calculations';
 import { toDateInputValue } from './date';
-import type { Expense, IncomeEntry, LegacyReserveGoal, ReserveClosure, ReserveGoal, Settings } from '../types';
+import type {
+  Expense,
+  IncomeEntry,
+  LegacyReserveGoal,
+  ReserveClosure,
+  ReserveGoal,
+  ReserveTopUp,
+  Settings,
+} from '../types';
 
 const EXPENSES_KEY = 'kuda-ushlo.expenses';
 const SETTINGS_KEY = 'kuda-ushlo.settings';
@@ -9,6 +17,7 @@ const INCOME_ENTRIES_KEY = 'kuda-ushlo.incomeEntries';
 const RESERVE_GOAL_KEY = 'kuda-ushlo.reserveGoal';
 const RESERVE_GOALS_KEY = 'kuda-ushlo.reserveGoals';
 const RESERVE_CLOSURES_KEY = 'kuda-ushlo.reserveClosures';
+const RESERVE_TOP_UPS_KEY = 'kuda-ushlo.reserveTopUps';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -246,6 +255,69 @@ export function saveReserveClosures(closures: ReserveClosure[]): void {
   localStorage.setItem(RESERVE_CLOSURES_KEY, JSON.stringify(closures));
 }
 
+function isValidDateValue(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function normalizeReserveTopUp(topUp: Partial<ReserveTopUp>): ReserveTopUp | null {
+  const amount = Number(topUp.amount);
+
+  if (
+    typeof topUp.id !== 'string' ||
+    !topUp.id.trim() ||
+    !Number.isFinite(amount) ||
+    Math.round(amount) <= 0 ||
+    !isValidDateValue(topUp.date)
+  ) {
+    return null;
+  }
+
+  const createdAt =
+    typeof topUp.createdAt === 'string' && topUp.createdAt
+      ? topUp.createdAt
+      : `${topUp.date}T00:00:00.000Z`;
+
+  return {
+    id: topUp.id.trim(),
+    amount: Math.min(Number.MAX_SAFE_INTEGER, Math.round(amount)),
+    date: topUp.date,
+    note: typeof topUp.note === 'string' ? topUp.note.trim() : '',
+    createdAt,
+    updatedAt:
+      typeof topUp.updatedAt === 'string' && topUp.updatedAt ? topUp.updatedAt : createdAt,
+  };
+}
+
+export function loadReserveTopUps(): ReserveTopUp[] {
+  const storedTopUps = readJson<unknown>(RESERVE_TOP_UPS_KEY, []);
+
+  if (!Array.isArray(storedTopUps)) {
+    return [];
+  }
+
+  return (storedTopUps as Array<Partial<ReserveTopUp>>)
+    .map(normalizeReserveTopUp)
+    .filter((topUp): topUp is ReserveTopUp => Boolean(topUp));
+}
+
+export function saveReserveTopUps(reserveTopUps: ReserveTopUp[]): void {
+  localStorage.setItem(
+    RESERVE_TOP_UPS_KEY,
+    JSON.stringify(
+      reserveTopUps
+        .map(normalizeReserveTopUp)
+        .filter((topUp): topUp is ReserveTopUp => Boolean(topUp)),
+    ),
+  );
+}
+
 export function clearAllData(): void {
   localStorage.removeItem(EXPENSES_KEY);
   localStorage.removeItem(SETTINGS_KEY);
@@ -253,4 +325,5 @@ export function clearAllData(): void {
   localStorage.removeItem(RESERVE_GOAL_KEY);
   localStorage.removeItem(RESERVE_GOALS_KEY);
   localStorage.removeItem(RESERVE_CLOSURES_KEY);
+  localStorage.removeItem(RESERVE_TOP_UPS_KEY);
 }

@@ -15,6 +15,7 @@ type SettingsScreenProps = {
   incomeEntries: IncomeEntry[];
   onSaveSettings: (settings: Settings) => void;
   onOpenAddIncome: () => void;
+  onOpenReserveTopUp: () => void;
   onClearData: () => void;
 };
 
@@ -89,6 +90,7 @@ export function SettingsScreen({
   incomeEntries,
   onSaveSettings,
   onOpenAddIncome,
+  onOpenReserveTopUp,
   onClearData,
 }: SettingsScreenProps) {
   const [availableNow, setAvailableNow] = useState(String(settings.availableNow || ''));
@@ -387,7 +389,7 @@ export function SettingsScreen({
               </div>
 
               <div className="savings-panel__head">
-                <span className="savings-section-title">Отложить</span>
+                <span className="savings-section-title">План отложить</span>
                 <AnimatedMoney
                   amount={clampedSavingsGoal}
                   className="savings-goal-display"
@@ -395,12 +397,19 @@ export function SettingsScreen({
                   debounceMs={180}
                 />
                 <p>Сумма, которую хочешь не тратить</p>
+                <p className="savings-panel__helper">
+                  План не пополняет запас автоматически. Фактические деньги добавляются через «Пополнить запас».
+                </p>
               </div>
+
+              <button className="secondary-button savings-panel__top-up" onClick={onOpenReserveTopUp} type="button">
+                Пополнить запас
+              </button>
 
               <div className="savings-panel__control">
                 <div className="savings-slider-wrap">
                   <input
-                    aria-label="Отложить"
+                    aria-label="План отложить"
                     className="savings-slider"
                     disabled={workingBudget <= 0}
                     max={workingBudget}
@@ -472,7 +481,7 @@ export function SettingsScreen({
               <h2 id="clear-data-title">Очистить все данные?</h2>
             </div>
 
-            <p className="confirm-modal__warning">Будут удалены все расходы, поступления и настройки. Это действие нельзя отменить.</p>
+            <p className="confirm-modal__warning">Будут удалены все расходы, поступления, запас, цели и настройки. Это действие нельзя отменить.</p>
 
             <label className="confirm-modal__field">
               <span>Чтобы подтвердить, введите: ОЧИСТИТЬ</span>

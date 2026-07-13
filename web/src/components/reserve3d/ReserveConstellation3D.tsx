@@ -196,7 +196,7 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
           <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
         </div>
         {!goals.length ? <p className="reserve-core__empty">Добавь цель, чтобы собрать свою систему накоплений.</p> : null}
-        {reserveTotal <= 0 ? <p className="reserve-core__empty">После фиксации месяца здесь появится реальный запас.</p> : null}
+        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или фиксации месяца здесь появится реальный запас.</p> : null}
       </div>
     </section>
   );

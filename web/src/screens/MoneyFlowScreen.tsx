@@ -7,12 +7,13 @@ import {
 } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
 import { getMoneyFlowMetrics } from '../lib/moneyFlow';
-import type { Expense, IncomeEntry, ReserveClosure, Settings } from '../types';
+import type { Expense, IncomeEntry, ReserveClosure, ReserveTopUp, Settings } from '../types';
 
 type MoneyFlowScreenProps = {
   expenses: Expense[];
   incomeEntries: IncomeEntry[];
   reserveClosures: ReserveClosure[];
+  reserveTopUps: ReserveTopUp[];
   settings: Settings;
   onBack: () => void;
 };
@@ -21,6 +22,7 @@ export function MoneyFlowScreen({
   expenses,
   incomeEntries,
   reserveClosures,
+  reserveTopUps,
   settings,
   onBack,
 }: MoneyFlowScreenProps) {
@@ -31,7 +33,7 @@ export function MoneyFlowScreen({
     workingBudget,
     savingsGoal: settings.savingsGoal,
     monthSpent: monthTotal,
-    reserveTotal: getReserveTotal(reserveClosures),
+    reserveTotal: getReserveTotal(reserveClosures, reserveTopUps),
   });
   const resultLabel = metrics.isOverBudget ? 'Перерасход' : 'Остаток';
   const resultAmount = metrics.isOverBudget ? metrics.deficit : metrics.remainingSpending;
@@ -63,7 +65,7 @@ export function MoneyFlowScreen({
             <dd>{formatMoney(metrics.workingBudget, settings.currency)}</dd>
           </div>
           <div>
-            <dt>Отложить</dt>
+            <dt>План отложить</dt>
             <dd>{formatMoney(metrics.savingsGoal, settings.currency)}</dd>
           </div>
           <div>

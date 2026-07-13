@@ -1,5 +1,13 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
-import type { Expense, ExpenseCategory, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
+import type {
+  Expense,
+  ExpenseCategory,
+  IncomeEntry,
+  ReserveClosure,
+  ReserveGoal,
+  ReserveTopUp,
+  Settings,
+} from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
@@ -310,8 +318,96 @@ export function getBudgetUsagePercent(monthTotal: number, monthlyBudget: number)
   return (monthTotal / monthlyBudget) * 100;
 }
 
-export function getReserveTotal(reserveClosures: ReserveClosure[]): number {
-  return reserveClosures.reduce((total, closure) => total + Math.max(0, closure.actualSaved), 0);
+function normalizeReserveAmount(value: unknown): number {
+  const amount = Number(value);
+
+  return Number.isFinite(amount)
+    ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.round(amount)))
+    : 0;
+}
+
+export function getReserveClosuresTotal(reserveClosures: ReserveClosure[]): number {
+  return reserveClosures.reduce(
+    (total, closure) =>
+      Math.min(Number.MAX_SAFE_INTEGER, total + normalizeReserveAmount(closure.actualSaved)),
+    0,
+  );
+}
+
+export function getReserveTopUpsTotal(reserveTopUps: ReserveTopUp[]): number {
+  return reserveTopUps.reduce(
+    (total, topUp) =>
+      Math.min(Number.MAX_SAFE_INTEGER, total + normalizeReserveAmount(topUp.amount)),
+    0,
+  );
+}
+
+export function getReserveTotal(
+  reserveClosures: ReserveClosure[],
+  reserveTopUps: ReserveTopUp[],
+): number {
+  return Math.min(
+    Number.MAX_SAFE_INTEGER,
+    getReserveClosuresTotal(reserveClosures) + getReserveTopUpsTotal(reserveTopUps),
+  );
+}
+
+export function getReserveTopUpsForMonth(
+  reserveTopUps: ReserveTopUp[],
+  monthKey: string,
+): ReserveTopUp[] {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) {
+    return [];
+  }
+
+  return reserveTopUps.filter((topUp) => topUp.date.slice(0, 7) === monthKey);
+}
+
+export type ReserveHistoryItem =
+  | {
+      type: 'closure';
+      id: string;
+      amount: number;
+      date: string;
+      createdAt: string;
+      closure: ReserveClosure;
+    }
+  | {
+      type: 'topUp';
+      id: string;
+      amount: number;
+      date: string;
+      createdAt: string;
+      topUp: ReserveTopUp;
+    };
+
+export function getReserveHistoryItems(
+  reserveClosures: ReserveClosure[],
+  reserveTopUps: ReserveTopUp[],
+): ReserveHistoryItem[] {
+  const closureItems: ReserveHistoryItem[] = reserveClosures.map((closure) => ({
+    type: 'closure',
+    id: closure.id,
+    amount: normalizeReserveAmount(closure.actualSaved),
+    date: /^\d{4}-\d{2}-\d{2}/.test(closure.confirmedAt)
+      ? closure.confirmedAt.slice(0, 10)
+      : `${closure.month}-01`,
+    createdAt: closure.confirmedAt,
+    closure,
+  }));
+  const topUpItems: ReserveHistoryItem[] = reserveTopUps.map((topUp) => ({
+    type: 'topUp',
+    id: topUp.id,
+    amount: normalizeReserveAmount(topUp.amount),
+    date: topUp.date,
+    createdAt: topUp.createdAt,
+    topUp,
+  }));
+
+  return [...closureItems, ...topUpItems].sort(
+    (first, second) =>
+      second.date.localeCompare(first.date) || second.createdAt.localeCompare(first.createdAt),
+  );
 }
 
 export function getCurrentMonthKey(date = new Date()): string {
@@ -329,10 +425,10 @@ export function sanitizeReserveGoal(goal: Partial<ReserveGoal>): ReserveGoal | n
 
   const rawTargetAmount = Number(goal.targetAmount);
   const rawAllocatedAmount = Number(goal.allocatedAmount);
-  const targetAmount = Number.isFinite(rawTargetAmount) ? Math.max(0, Math.round(rawTargetAmount)) : 0;
+  const targetAmount = normalizeReserveAmount(rawTargetAmount);
   const allocatedAmount = Math.min(
     targetAmount,
-    Number.isFinite(rawAllocatedAmount) ? Math.max(0, Math.round(rawAllocatedAmount)) : 0,
+    normalizeReserveAmount(rawAllocatedAmount),
   );
   const createdAt = typeof goal.createdAt === 'string' && goal.createdAt ? goal.createdAt : new Date(0).toISOString();
   const updatedAt = typeof goal.updatedAt === 'string' && goal.updatedAt ? goal.updatedAt : createdAt;
@@ -349,13 +445,15 @@ export function sanitizeReserveGoal(goal: Partial<ReserveGoal>): ReserveGoal | n
 
 export function getAllocatedReserveTotal(goals: ReserveGoal[]): number {
   return goals.reduce((total, goal) => {
-    const allocatedAmount = Number(goal.allocatedAmount);
-    return total + (Number.isFinite(allocatedAmount) ? Math.max(0, Math.round(allocatedAmount)) : 0);
+    return Math.min(
+      Number.MAX_SAFE_INTEGER,
+      total + normalizeReserveAmount(goal.allocatedAmount),
+    );
   }, 0);
 }
 
 export function getUnallocatedReserve(reserveTotal: number, goals: ReserveGoal[]): number {
-  const normalizedReserveTotal = Number.isFinite(reserveTotal) ? Math.max(0, reserveTotal) : 0;
+  const normalizedReserveTotal = normalizeReserveAmount(reserveTotal);
   return Math.max(normalizedReserveTotal - getAllocatedReserveTotal(goals), 0);
 }
 
@@ -371,7 +469,7 @@ export function reconcileReserveGoalAllocations(goals: ReserveGoal[], reserveTot
   const normalizedGoals = goals
     .map(sanitizeReserveGoal)
     .filter((goal): goal is ReserveGoal => Boolean(goal));
-  const allocationCapacity = Number.isFinite(reserveTotal) ? Math.max(0, Math.floor(reserveTotal)) : 0;
+  const allocationCapacity = normalizeReserveAmount(reserveTotal);
   let excess = Math.max(0, getAllocatedReserveTotal(normalizedGoals) - allocationCapacity);
 
   if (excess <= 0) {
