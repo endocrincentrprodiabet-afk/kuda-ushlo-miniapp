@@ -7,7 +7,8 @@ import { HomeScreen } from './screens/HomeScreen';
 import { MoneyFlowScreen } from './screens/MoneyFlowScreen';
 import { ReserveScreen } from './screens/ReserveScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS } from './lib/constants';
+import { DEFAULT_SETTINGS } from './lib/constants';
+import { getReserveTotal, reconcileReserveGoalAllocations } from './lib/calculations';
 import { formatDate } from './lib/date';
 import { formatMoney } from './lib/format';
 import {
@@ -15,12 +16,12 @@ import {
   loadIncomeEntries,
   loadExpenses,
   loadReserveClosures,
-  loadReserveGoal,
+  loadReserveGoals,
   loadSettings,
   saveExpenses,
   saveIncomeEntries,
   saveReserveClosures,
-  saveReserveGoal,
+  saveReserveGoals,
   saveSettings,
 } from './lib/storage';
 import { sendTelegramReport } from './lib/telegram';
@@ -51,8 +52,10 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>(() => loadExpenses());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>(() => loadIncomeEntries());
-  const [reserveGoal, setReserveGoal] = useState<ReserveGoal>(() => loadReserveGoal());
   const [reserveClosures, setReserveClosures] = useState<ReserveClosure[]>(() => loadReserveClosures());
+  const [reserveGoals, setReserveGoals] = useState<ReserveGoal[]>(() =>
+    loadReserveGoals(getReserveTotal(reserveClosures)),
+  );
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
   const [reportStatus, setReportStatus] = useState('');
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
@@ -106,12 +109,18 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    saveReserveGoal(reserveGoal);
-  }, [reserveGoal]);
+    saveReserveGoals(reserveGoals);
+  }, [reserveGoals]);
 
   useEffect(() => {
     saveReserveClosures(reserveClosures);
   }, [reserveClosures]);
+
+  const reserveTotal = getReserveTotal(reserveClosures);
+
+  useEffect(() => {
+    setReserveGoals((current) => reconcileReserveGoalAllocations(current, reserveTotal));
+  }, [reserveTotal]);
 
   useLayoutEffect(() => {
     if (activeDetail) {
@@ -229,7 +238,7 @@ export default function App() {
     setExpenses([]);
     setSettings(DEFAULT_SETTINGS);
     setIncomeEntries([]);
-    setReserveGoal(DEFAULT_RESERVE_GOAL);
+    setReserveGoals([]);
     setReserveClosures([]);
     setReportStatus('');
   }
@@ -352,9 +361,9 @@ export default function App() {
             expenses={expenses}
             settings={settings}
             incomeEntries={incomeEntries}
-            reserveGoal={reserveGoal}
+            reserveGoals={reserveGoals}
             reserveClosures={reserveClosures}
-            onSaveReserveGoal={setReserveGoal}
+            onSaveReserveGoals={setReserveGoals}
             onSaveReserveClosures={setReserveClosures}
           />
         ) : null}

@@ -8,9 +8,10 @@ type ReserveParticlesProps = {
   isActive: boolean;
   pulse: MutableRefObject<number>;
   visualProgress: number;
+  spread?: number;
 };
 
-function createParticlePositions(particleCount: number): Float32Array {
+function createParticlePositions(particleCount: number, spread: number): Float32Array {
   const positions = new Float32Array(particleCount * 3);
   let seed = 2749;
 
@@ -20,7 +21,7 @@ function createParticlePositions(particleCount: number): Float32Array {
   };
 
   for (let index = 0; index < particleCount; index += 1) {
-    const radius = 1.52 + random() * 0.72;
+    const radius = spread * (0.66 + random() * 0.34);
     const theta = random() * Math.PI * 2;
     const phi = Math.acos(2 * random() - 1);
     const offset = index * 3;
@@ -33,10 +34,17 @@ function createParticlePositions(particleCount: number): Float32Array {
   return positions;
 }
 
-export function ReserveParticles({ animated, count, isActive, pulse, visualProgress }: ReserveParticlesProps) {
+export function ReserveParticles({
+  animated,
+  count,
+  isActive,
+  pulse,
+  visualProgress,
+  spread = 2.24,
+}: ReserveParticlesProps) {
   const points = useRef<THREE.Points>(null);
   const material = useRef<THREE.PointsMaterial>(null);
-  const positions = useMemo(() => createParticlePositions(count), [count]);
+  const positions = useMemo(() => createParticlePositions(count, spread), [count, spread]);
 
   useFrame((_, delta) => {
     if (!isActive || !animated || !points.current) {

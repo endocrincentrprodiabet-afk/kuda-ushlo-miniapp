@@ -1,5 +1,5 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
-import type { Expense, ExpenseCategory, IncomeEntry, ReserveClosure, Settings } from '../types';
+import type { Expense, ExpenseCategory, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
 
 export function sumExpenses(expenses: Expense[]): number {
   return expenses.reduce((total, expense) => total + expense.amount, 0);
@@ -322,12 +322,78 @@ export function getSuggestedMonthlySavings(monthlyBudget: number, monthTotal: nu
   return Math.max(Math.max(0, monthlyBudget) - Math.max(0, monthTotal), 0);
 }
 
-export function getGoalProgress(reserveTotal: number, targetAmount: number): number {
-  if (targetAmount <= 0) {
+export function sanitizeReserveGoal(goal: Partial<ReserveGoal>): ReserveGoal | null {
+  if (typeof goal.id !== 'string' || !goal.id.trim()) {
+    return null;
+  }
+
+  const rawTargetAmount = Number(goal.targetAmount);
+  const rawAllocatedAmount = Number(goal.allocatedAmount);
+  const targetAmount = Number.isFinite(rawTargetAmount) ? Math.max(0, Math.round(rawTargetAmount)) : 0;
+  const allocatedAmount = Math.min(
+    targetAmount,
+    Number.isFinite(rawAllocatedAmount) ? Math.max(0, Math.round(rawAllocatedAmount)) : 0,
+  );
+  const createdAt = typeof goal.createdAt === 'string' && goal.createdAt ? goal.createdAt : new Date(0).toISOString();
+  const updatedAt = typeof goal.updatedAt === 'string' && goal.updatedAt ? goal.updatedAt : createdAt;
+
+  return {
+    id: goal.id.trim(),
+    title: typeof goal.title === 'string' && goal.title.trim() ? goal.title.trim() : 'Цель',
+    targetAmount,
+    allocatedAmount,
+    createdAt,
+    updatedAt,
+  };
+}
+
+export function getAllocatedReserveTotal(goals: ReserveGoal[]): number {
+  return goals.reduce((total, goal) => {
+    const allocatedAmount = Number(goal.allocatedAmount);
+    return total + (Number.isFinite(allocatedAmount) ? Math.max(0, Math.round(allocatedAmount)) : 0);
+  }, 0);
+}
+
+export function getUnallocatedReserve(reserveTotal: number, goals: ReserveGoal[]): number {
+  const normalizedReserveTotal = Number.isFinite(reserveTotal) ? Math.max(0, reserveTotal) : 0;
+  return Math.max(normalizedReserveTotal - getAllocatedReserveTotal(goals), 0);
+}
+
+export function getGoalProgress(goal: Pick<ReserveGoal, 'allocatedAmount' | 'targetAmount'>): number {
+  if (goal.targetAmount <= 0) {
     return 0;
   }
 
-  return (Math.max(0, reserveTotal) / targetAmount) * 100;
+  return Math.min(1, Math.max(0, goal.allocatedAmount / goal.targetAmount));
+}
+
+export function reconcileReserveGoalAllocations(goals: ReserveGoal[], reserveTotal: number): ReserveGoal[] {
+  const normalizedGoals = goals
+    .map(sanitizeReserveGoal)
+    .filter((goal): goal is ReserveGoal => Boolean(goal));
+  const allocationCapacity = Number.isFinite(reserveTotal) ? Math.max(0, Math.floor(reserveTotal)) : 0;
+  let excess = Math.max(0, getAllocatedReserveTotal(normalizedGoals) - allocationCapacity);
+
+  if (excess <= 0) {
+    return normalizedGoals;
+  }
+
+  const nextGoals = normalizedGoals.map((goal) => ({ ...goal }));
+  const reductionOrder = nextGoals
+    .map((goal, index) => ({ index, updatedAt: goal.updatedAt }))
+    .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt) || second.index - first.index);
+
+  for (const item of reductionOrder) {
+    if (excess <= 0) {
+      break;
+    }
+
+    const reduction = Math.min(nextGoals[item.index].allocatedAmount, excess);
+    nextGoals[item.index].allocatedAmount = Math.max(0, nextGoals[item.index].allocatedAmount - reduction);
+    excess -= reduction;
+  }
+
+  return nextGoals;
 }
 
 export function getMonthBalanceStatus(

@@ -1,11 +1,13 @@
-import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS } from './constants';
+import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS, MAX_RESERVE_GOALS } from './constants';
+import { reconcileReserveGoalAllocations, sanitizeReserveGoal } from './calculations';
 import { toDateInputValue } from './date';
-import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
+import type { Expense, IncomeEntry, LegacyReserveGoal, ReserveClosure, ReserveGoal, Settings } from '../types';
 
 const EXPENSES_KEY = 'kuda-ushlo.expenses';
 const SETTINGS_KEY = 'kuda-ushlo.settings';
 const INCOME_ENTRIES_KEY = 'kuda-ushlo.incomeEntries';
 const RESERVE_GOAL_KEY = 'kuda-ushlo.reserveGoal';
+const RESERVE_GOALS_KEY = 'kuda-ushlo.reserveGoals';
 const RESERVE_CLOSURES_KEY = 'kuda-ushlo.reserveClosures';
 
 function readJson<T>(key: string, fallback: T): T {
@@ -130,10 +132,10 @@ export function saveIncomeEntries(entries: IncomeEntry[]): void {
   localStorage.setItem(INCOME_ENTRIES_KEY, JSON.stringify(entries.map(normalizeIncomeEntry).filter(Boolean)));
 }
 
-export function loadReserveGoal(): ReserveGoal {
+export function loadReserveGoal(): LegacyReserveGoal {
   const goal = {
     ...DEFAULT_RESERVE_GOAL,
-    ...readJson<Partial<ReserveGoal>>(RESERVE_GOAL_KEY, DEFAULT_RESERVE_GOAL),
+    ...readJson<Partial<LegacyReserveGoal>>(RESERVE_GOAL_KEY, DEFAULT_RESERVE_GOAL),
   };
 
   return {
@@ -142,7 +144,7 @@ export function loadReserveGoal(): ReserveGoal {
   };
 }
 
-export function saveReserveGoal(goal: ReserveGoal): void {
+export function saveReserveGoal(goal: LegacyReserveGoal): void {
   localStorage.setItem(
     RESERVE_GOAL_KEY,
     JSON.stringify({
@@ -150,6 +152,71 @@ export function saveReserveGoal(goal: ReserveGoal): void {
       targetAmount: Math.max(0, Number(goal.targetAmount) || 0),
     }),
   );
+}
+
+function writeReserveGoals(goals: ReserveGoal[]): void {
+  try {
+    localStorage.setItem(RESERVE_GOALS_KEY, JSON.stringify(goals));
+  } catch {
+    // Keep the current in-memory state usable when storage is unavailable.
+  }
+}
+
+export function loadReserveGoals(reserveTotal: number): ReserveGoal[] {
+  let storedGoalsRaw: string | null = null;
+
+  try {
+    storedGoalsRaw = localStorage.getItem(RESERVE_GOALS_KEY);
+  } catch {
+    return [];
+  }
+
+  if (storedGoalsRaw !== null) {
+    try {
+      const parsedGoals = JSON.parse(storedGoalsRaw) as Array<Partial<ReserveGoal>>;
+      const normalizedGoals = Array.isArray(parsedGoals)
+        ? parsedGoals
+            .map(sanitizeReserveGoal)
+            .filter((goal): goal is ReserveGoal => Boolean(goal))
+            .slice(0, MAX_RESERVE_GOALS)
+        : [];
+      const reconciledGoals = reconcileReserveGoalAllocations(normalizedGoals, reserveTotal);
+      writeReserveGoals(reconciledGoals);
+
+      return reconciledGoals;
+    } catch {
+      writeReserveGoals([]);
+      return [];
+    }
+  }
+
+  const legacyGoal = loadReserveGoal();
+
+  if (legacyGoal.targetAmount <= 0) {
+    writeReserveGoals([]);
+    return [];
+  }
+
+  const migratedAt = new Date().toISOString();
+  const migratedGoal: ReserveGoal = {
+    id: 'migrated-reserve-goal-v1',
+    title: legacyGoal.title.trim() || 'Цель',
+    targetAmount: legacyGoal.targetAmount,
+    allocatedAmount: Math.min(Math.max(0, Math.floor(reserveTotal)), legacyGoal.targetAmount),
+    createdAt: migratedAt,
+    updatedAt: migratedAt,
+  };
+
+  writeReserveGoals([migratedGoal]);
+  return [migratedGoal];
+}
+
+export function saveReserveGoals(goals: ReserveGoal[]): void {
+  const normalizedGoals = goals
+    .map(sanitizeReserveGoal)
+    .filter((goal): goal is ReserveGoal => Boolean(goal))
+    .slice(0, MAX_RESERVE_GOALS);
+  writeReserveGoals(normalizedGoals);
 }
 
 function normalizeReserveClosure(closure: Partial<ReserveClosure>): ReserveClosure | null {
@@ -184,5 +251,6 @@ export function clearAllData(): void {
   localStorage.removeItem(SETTINGS_KEY);
   localStorage.removeItem(INCOME_ENTRIES_KEY);
   localStorage.removeItem(RESERVE_GOAL_KEY);
+  localStorage.removeItem(RESERVE_GOALS_KEY);
   localStorage.removeItem(RESERVE_CLOSURES_KEY);
 }

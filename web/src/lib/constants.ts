@@ -1,4 +1,4 @@
-import type { ExpenseCategory, ReserveGoal, Settings } from '../types';
+import type { ExpenseCategory, LegacyReserveGoal, Settings } from '../types';
 
 export const CATEGORIES: ExpenseCategory[] = [
   'Еда',
@@ -24,7 +24,9 @@ export const DEFAULT_SETTINGS: Settings = {
   currency: 'RUB',
 };
 
-export const DEFAULT_RESERVE_GOAL: ReserveGoal = {
+export const DEFAULT_RESERVE_GOAL: LegacyReserveGoal = {
   title: 'Неприкосновенный запас',
   targetAmount: 0,
 };
+
+export const MAX_RESERVE_GOALS = 6;

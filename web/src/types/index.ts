@@ -42,6 +42,15 @@ export type IncomeEntry = {
 };
 
 export type ReserveGoal = {
+  id: string;
+  title: string;
+  targetAmount: number;
+  allocatedAmount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LegacyReserveGoal = {
   title: string;
   targetAmount: number;
 };

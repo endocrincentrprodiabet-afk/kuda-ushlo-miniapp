@@ -1,35 +1,43 @@
-import { FormEvent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { ReserveCoreErrorBoundary } from '../components/reserve3d/ReserveCoreErrorBoundary';
-import { ReserveCoreFallback } from '../components/reserve3d/ReserveCoreFallback';
+import { ReserveConstellationFallback } from '../components/reserve3d/ReserveConstellationFallback';
+import { ReserveGoalDeleteModal } from '../components/reserve3d/ReserveGoalDeleteModal';
+import { ReserveGoalModal } from '../components/reserve3d/ReserveGoalModal';
 import {
+  getAllocatedReserveTotal,
   getCurrentMonthKey,
   getGoalProgress,
   getMonthlySpendingLimit,
   getMonthExpenses,
   getReserveTotal,
   getSuggestedMonthlySavings,
+  getUnallocatedReserve,
   getWorkingBudget,
+  reconcileReserveGoalAllocations,
   sumExpenses,
 } from '../lib/calculations';
+import { MAX_RESERVE_GOALS } from '../lib/constants';
 import { formatMoney } from '../lib/format';
+import type { ReserveConstellationData } from '../lib/reserveVisual';
 import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, Settings } from '../types';
 
-const ReserveCore3D = lazy(() => import('../components/reserve3d/ReserveCore3D'));
+const ReserveConstellation3D = lazy(() => import('../components/reserve3d/ReserveConstellation3D'));
 
 type ReserveScreenProps = {
   expenses: Expense[];
   settings: Settings;
   incomeEntries: IncomeEntry[];
-  reserveGoal: ReserveGoal;
+  reserveGoals: ReserveGoal[];
   reserveClosures: ReserveClosure[];
-  onSaveReserveGoal: (goal: ReserveGoal) => void;
+  onSaveReserveGoals: (goals: ReserveGoal[]) => void;
   onSaveReserveClosures: (closures: ReserveClosure[]) => void;
 };
 
 function parseMoneyInput(value: string): number {
-  return Math.max(0, Number(value.replace(',', '.')) || 0);
+  const parsedValue = Number(value.replace(',', '.'));
+  return Number.isFinite(parsedValue) ? Math.max(0, Math.round(parsedValue)) : 0;
 }
 
 function getMonthLabel(monthKey: string): string {
@@ -43,24 +51,35 @@ function getMonthLabel(monthKey: string): string {
 }
 
 function formatProgressPercent(value: number): string {
-  return `${Math.round(value)}%`;
+  return `${Math.round(value * 100)}%`;
+}
+
+function createReserveGoalId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `reserve-goal-${crypto.randomUUID()}`;
+  }
+
+  return `reserve-goal-${Date.now()}`;
 }
 
 export function ReserveScreen({
   expenses,
   settings,
   incomeEntries,
-  reserveGoal,
+  reserveGoals,
   reserveClosures,
-  onSaveReserveGoal,
+  onSaveReserveGoals,
   onSaveReserveClosures,
 }: ReserveScreenProps) {
-  const [goalTitle, setGoalTitle] = useState(reserveGoal.title);
-  const [targetAmount, setTargetAmount] = useState(String(reserveGoal.targetAmount || ''));
-  const [goalSaved, setGoalSaved] = useState(false);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(() => reserveGoals[0]?.id ?? null);
+  const [goalEditor, setGoalEditor] = useState<ReserveGoal | null | undefined>(undefined);
+  const [goalToDelete, setGoalToDelete] = useState<ReserveGoal | null>(null);
   const [closureModalOpen, setClosureModalOpen] = useState(false);
   const [closureAmount, setClosureAmount] = useState('');
   const reserveTotal = getReserveTotal(reserveClosures);
+  const allocatedTotal = getAllocatedReserveTotal(reserveGoals);
+  const unallocatedReserve = getUnallocatedReserve(reserveTotal, reserveGoals);
+  const selectedGoal = reserveGoals.find((goal) => goal.id === selectedGoalId) ?? null;
   const currentMonthKey = getCurrentMonthKey();
   const currentMonthTotal = sumExpenses(getMonthExpenses(expenses));
   const workingBudget = getWorkingBudget(settings, incomeEntries);
@@ -68,11 +87,8 @@ export function ReserveScreen({
   const actualSuggested = getSuggestedMonthlySavings(workingBudget, currentMonthTotal);
   const plannedSavings = Math.min(settings.savingsGoal, workingBudget);
   const currentClosure = reserveClosures.find((closure) => closure.month === currentMonthKey) ?? null;
-  const progress = getGoalProgress(reserveTotal, reserveGoal.targetAmount);
-  const cappedProgress = Math.min(100, Math.max(0, progress));
-  const reserveGoalLeft = Math.max(0, reserveGoal.targetAmount - reserveTotal);
   const sortedClosures = useMemo(
-    () => [...reserveClosures].sort((a, b) => b.month.localeCompare(a.month)),
+    () => [...reserveClosures].sort((first, second) => second.month.localeCompare(first.month)),
     [reserveClosures],
   );
   const displayedMonthlySavings = currentClosure?.actualSaved ?? actualSuggested;
@@ -87,11 +103,17 @@ export function ReserveScreen({
   const planInsightTone = planDiff > 0 ? 'positive' : planDiff < 0 ? 'negative' : 'neutral';
   const planInsightClassName = `reserve-fix-insight reserve-fix-insight--${planInsightTone}`;
   const canCloseMonth = workingBudget > 0;
+  const atGoalLimit = reserveGoals.length >= MAX_RESERVE_GOALS;
 
   useEffect(() => {
-    setGoalTitle(reserveGoal.title);
-    setTargetAmount(String(reserveGoal.targetAmount || ''));
-  }, [reserveGoal.title, reserveGoal.targetAmount]);
+    setSelectedGoalId((current) => {
+      if (current && reserveGoals.some((goal) => goal.id === current)) {
+        return current;
+      }
+
+      return reserveGoals[0]?.id ?? null;
+    });
+  }, [reserveGoals]);
 
   useEffect(() => {
     if (!closureModalOpen) {
@@ -106,13 +128,65 @@ export function ReserveScreen({
     };
   }, [closureModalOpen]);
 
-  function handleSaveGoal(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSaveReserveGoal({
-      title: goalTitle.trim() || 'Неприкосновенный запас',
-      targetAmount: parseMoneyInput(targetAmount),
-    });
-    setGoalSaved(true);
+  function handleOpenAddGoal() {
+    if (!atGoalLimit) {
+      setGoalEditor(null);
+    }
+  }
+
+  function handleOpenEditGoal() {
+    if (selectedGoal) {
+      setGoalEditor(selectedGoal);
+    }
+  }
+
+  function handleSaveGoal(values: { title: string; targetAmount: number; allocatedAmount: number }) {
+    const now = new Date().toISOString();
+
+    if (goalEditor) {
+      const nextGoals = reserveGoals.map((goal) =>
+        goal.id === goalEditor.id
+          ? {
+              ...goal,
+              ...values,
+              allocatedAmount: Math.min(values.allocatedAmount, values.targetAmount),
+              updatedAt: now,
+            }
+          : goal,
+      );
+      onSaveReserveGoals(reconcileReserveGoalAllocations(nextGoals, reserveTotal));
+      setSelectedGoalId(goalEditor.id);
+      setGoalEditor(undefined);
+      return;
+    }
+
+    if (atGoalLimit) {
+      return;
+    }
+
+    const nextGoal: ReserveGoal = {
+      id: createReserveGoalId(),
+      ...values,
+      allocatedAmount: Math.min(values.allocatedAmount, values.targetAmount, unallocatedReserve),
+      createdAt: now,
+      updatedAt: now,
+    };
+    onSaveReserveGoals(reconcileReserveGoalAllocations([...reserveGoals, nextGoal], reserveTotal));
+    setSelectedGoalId(nextGoal.id);
+    setGoalEditor(undefined);
+  }
+
+  function handleConfirmDeleteGoal() {
+    if (!goalToDelete) {
+      return;
+    }
+
+    const deletedIndex = reserveGoals.findIndex((goal) => goal.id === goalToDelete.id);
+    const nextGoals = reserveGoals.filter((goal) => goal.id !== goalToDelete.id);
+    const nextSelectedGoal = nextGoals[deletedIndex] ?? nextGoals[Math.max(0, deletedIndex - 1)] ?? null;
+    onSaveReserveGoals(nextGoals);
+    setSelectedGoalId(nextSelectedGoal?.id ?? null);
+    setGoalToDelete(null);
   }
 
   function handleOpenClosureModal() {
@@ -134,7 +208,6 @@ export function ReserveScreen({
       spendingLimit,
       confirmedAt,
     };
-
     const hasCurrentClosure = reserveClosures.some((closure) => closure.month === currentMonthKey);
     const nextClosures = hasCurrentClosure
       ? reserveClosures.map((closure) => (closure.month === currentMonthKey ? nextClosure : closure))
@@ -144,11 +217,26 @@ export function ReserveScreen({
     setClosureModalOpen(false);
   }
 
+  const constellationProps: ReserveConstellationData = {
+    allocatedTotal,
+    currency: settings.currency,
+    goals: reserveGoals,
+    onAddGoal: handleOpenAddGoal,
+    onDeleteSelectedGoal: () => selectedGoal && setGoalToDelete(selectedGoal),
+    onEditSelectedGoal: handleOpenEditGoal,
+    onSelectGoal: setSelectedGoalId,
+    reserveTotal,
+    selectedGoalId,
+    unallocatedReserve,
+  };
+
+  const constellationFallback = <ReserveConstellationFallback {...constellationProps} />;
   const closureModal = closureModalOpen
     ? createPortal(
-        <div className="reserve-modal-backdrop" role="presentation">
+        <div className="reserve-modal-backdrop" onMouseDown={() => setClosureModalOpen(false)} role="presentation">
           <form
             className="confirm-modal reserve-modal"
+            onMouseDown={(event) => event.stopPropagation()}
             onSubmit={handleConfirmClosure}
             role="dialog"
             aria-modal="true"
@@ -158,11 +246,9 @@ export function ReserveScreen({
               <p className="subtitle">Запас месяца</p>
               <h2 id="reserve-closure-title">Зафиксировать запас?</h2>
             </div>
-
             <p className="reserve-modal__text">
               По расчёту ты можешь отложить: {formatMoney(actualSuggested, settings.currency)}
             </p>
-
             <label className="confirm-modal__field reserve-modal__field">
               <span>Сумма</span>
               <input
@@ -174,7 +260,6 @@ export function ReserveScreen({
                 value={closureAmount}
               />
             </label>
-
             <div className="confirm-modal__actions">
               <button className="secondary-button" onClick={() => setClosureModalOpen(false)} type="button">
                 Отмена
@@ -199,94 +284,108 @@ export function ReserveScreen({
           </div>
         </header>
 
-        <ReserveCoreErrorBoundary
-          fallback={
-            <ReserveCoreFallback
-              currency={settings.currency}
-              goalProgress={progress}
-              goalTitle={reserveGoal.title}
-              remainingToGoal={reserveGoalLeft}
-              reserveTotal={reserveTotal}
-              targetAmount={reserveGoal.targetAmount}
-            />
-          }
-        >
-          <Suspense
-            fallback={
-              <ReserveCoreFallback
-                currency={settings.currency}
-                goalProgress={progress}
-                goalTitle={reserveGoal.title}
-                remainingToGoal={reserveGoalLeft}
-                reserveTotal={reserveTotal}
-                targetAmount={reserveGoal.targetAmount}
-              />
-            }
-          >
-            <ReserveCore3D
-              currency={settings.currency}
-              goalProgress={progress}
-              goalTitle={reserveGoal.title}
-              remainingToGoal={reserveGoalLeft}
-              reserveTotal={reserveTotal}
-              targetAmount={reserveGoal.targetAmount}
-            />
+        <ReserveCoreErrorBoundary fallback={constellationFallback}>
+          <Suspense fallback={constellationFallback}>
+            <ReserveConstellation3D {...constellationProps} />
           </Suspense>
         </ReserveCoreErrorBoundary>
 
-        <form className="card reserve-goal-card" onSubmit={handleSaveGoal}>
-          <div className="section-title">
-            <h2>Цель</h2>
-            {reserveGoal.targetAmount > 0 ? <span>{formatProgressPercent(progress)}</span> : null}
+        <section className="card reserve-summary-card" aria-label="Сводка запаса">
+          <div>
+            <span>Общий запас</span>
+            <AnimatedMoney amount={reserveTotal} currency={settings.currency} />
+          </div>
+          <div>
+            <span>Распределено</span>
+            <AnimatedMoney amount={allocatedTotal} currency={settings.currency} />
+          </div>
+          <div>
+            <span>Свободно</span>
+            <AnimatedMoney amount={unallocatedReserve} currency={settings.currency} />
+          </div>
+        </section>
+
+        <section className="card reserve-goals-card">
+          <div className="reserve-goals-card__header">
+            <div className="section-title">
+              <h2>Цели</h2>
+              <span>{reserveGoals.length} / {MAX_RESERVE_GOALS}</span>
+            </div>
+            <button className="secondary-button reserve-goals-card__add" disabled={atGoalLimit} onClick={handleOpenAddGoal} type="button">
+              Добавить цель
+            </button>
           </div>
 
-          <label>
-            <span>На что копим?</span>
-            <input
-              onChange={(event) => {
-                setGoalTitle(event.target.value);
-                setGoalSaved(false);
-              }}
-              value={goalTitle}
-            />
-          </label>
+          {atGoalLimit ? <p className="reserve-goals-card__limit">Можно создать до 6 целей.</p> : null}
+          {unallocatedReserve > 0 ? (
+            <p className="reserve-goals-card__free">
+              Свободно для распределения: {formatMoney(unallocatedReserve, settings.currency)}
+            </p>
+          ) : null}
 
-          <label>
-            <span>Сумма цели</span>
-            <input
-              inputMode="decimal"
-              min="0"
-              onChange={(event) => {
-                setTargetAmount(event.target.value);
-                setGoalSaved(false);
-              }}
-              type="number"
-              value={targetAmount}
-            />
-          </label>
+          {reserveGoals.length ? (
+            <div className="reserve-goals-list">
+              {reserveGoals.map((goal) => {
+                const progress = getGoalProgress(goal);
+                const remainingAmount = Math.max(0, goal.targetAmount - goal.allocatedAmount);
+                const progressStyle = { '--goal-progress': `${progress * 100}%` } as CSSProperties;
 
-          {reserveGoal.targetAmount > 0 ? (
-            <div className="reserve-progress">
-              <div className="reserve-progress__head">
-                <span>
-                  {formatMoney(reserveTotal, settings.currency)} из {formatMoney(reserveGoal.targetAmount, settings.currency)}
-                </span>
-                <strong>{progress >= 100 ? 'Цель достигнута' : formatProgressPercent(progress)}</strong>
-              </div>
-              <div className="month-balance-track" aria-hidden="true">
-                <span style={{ width: `${cappedProgress}%` }} />
-              </div>
+                return (
+                  <button
+                    className={`reserve-goal-item${goal.id === selectedGoalId ? ' is-selected' : ''}`}
+                    key={goal.id}
+                    onClick={() => setSelectedGoalId(goal.id)}
+                    style={progressStyle}
+                    type="button"
+                  >
+                    <span className="reserve-goal-item__title">{goal.title}</span>
+                    <span className="reserve-goal-item__amounts">
+                      {formatMoney(goal.allocatedAmount, settings.currency)} из {formatMoney(goal.targetAmount, settings.currency)}
+                    </span>
+                    <strong>{formatProgressPercent(progress)}</strong>
+                    <span className="reserve-goal-item__track" aria-hidden="true"><span /></span>
+                    <span className="reserve-goal-item__remaining">
+                      Осталось: {formatMoney(remainingAmount, settings.currency)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <p className="empty-state">Добавь цель, чтобы видеть прогресс запаса.</p>
+            <p className="empty-state">Добавь первую цель, чтобы создать сферу.</p>
           )}
 
-          {goalSaved ? <p className="success-text">Цель сохранена</p> : null}
-
-          <button className="primary-button" type="submit">
-            Сохранить цель
-          </button>
-        </form>
+          {selectedGoal ? (
+            <article className="reserve-selected-goal">
+              <div className="reserve-selected-goal__head">
+                <div>
+                  <span>Выбранная цель</span>
+                  <h3>{selectedGoal.title}</h3>
+                </div>
+                <strong>{formatProgressPercent(getGoalProgress(selectedGoal))}</strong>
+              </div>
+              <dl>
+                <div>
+                  <dt>Распределено</dt>
+                  <dd>{formatMoney(selectedGoal.allocatedAmount, settings.currency)}</dd>
+                </div>
+                <div>
+                  <dt>Сумма цели</dt>
+                  <dd>{formatMoney(selectedGoal.targetAmount, settings.currency)}</dd>
+                </div>
+                <div>
+                  <dt>Осталось</dt>
+                  <dd>{formatMoney(Math.max(0, selectedGoal.targetAmount - selectedGoal.allocatedAmount), settings.currency)}</dd>
+                </div>
+              </dl>
+              <div className="reserve-selected-goal__actions">
+                <button className="primary-button" onClick={handleOpenEditGoal} type="button">Распределить</button>
+                <button className="secondary-button" onClick={handleOpenEditGoal} type="button">Изменить</button>
+                <button className="delete-button" onClick={() => setGoalToDelete(selectedGoal)} type="button">Удалить</button>
+              </div>
+            </article>
+          ) : null}
+        </section>
 
         <section className="card reserve-close-card reserve-fix-card">
           <div className="section-title">
@@ -295,19 +394,32 @@ export function ReserveScreen({
           </div>
 
           {canCloseMonth ? (
-            <>
-              {currentClosure ? (
-                <div className="reserve-fix-summary">
-                  <div className="reserve-fix-status-row">
-                    <p className="reserve-fix-status">Месяц уже зафиксирован</p>
-                    <button className="reserve-fix-edit-button" onClick={handleOpenClosureModal} type="button">
-                      Изменить
-                    </button>
+            currentClosure ? (
+              <div className="reserve-fix-summary">
+                <div className="reserve-fix-status-row">
+                  <p className="reserve-fix-status">Месяц уже зафиксирован</p>
+                  <button className="reserve-fix-edit-button" onClick={handleOpenClosureModal} type="button">Изменить</button>
+                </div>
+                <div className="reserve-fix-metrics">
+                  <div className="reserve-fix-row">
+                    <span>Отложено</span>
+                    <strong className="reserve-fix-value">{formatMoney(currentClosure.actualSaved, settings.currency)}</strong>
                   </div>
+                  <div className="reserve-fix-row">
+                    <span>План</span>
+                    <strong className="reserve-fix-value">{formatMoney(plannedSavings, settings.currency)}</strong>
+                  </div>
+                </div>
+                <div className="reserve-fix-divider" aria-hidden="true" />
+                <p className={planInsightClassName}>{planInsightText}</p>
+              </div>
+            ) : (
+              <>
+                <div className="reserve-fix-summary">
                   <div className="reserve-fix-metrics">
                     <div className="reserve-fix-row">
                       <span>Отложено</span>
-                      <strong className="reserve-fix-value">{formatMoney(currentClosure.actualSaved, settings.currency)}</strong>
+                      <AnimatedMoney amount={actualSuggested} className="reserve-fix-value" currency={settings.currency} debounceMs={180} />
                     </div>
                     <div className="reserve-fix-row">
                       <span>План</span>
@@ -317,33 +429,9 @@ export function ReserveScreen({
                   <div className="reserve-fix-divider" aria-hidden="true" />
                   <p className={planInsightClassName}>{planInsightText}</p>
                 </div>
-              ) : (
-                <>
-                  <div className="reserve-fix-summary">
-                    <div className="reserve-fix-metrics">
-                      <div className="reserve-fix-row">
-                        <span>Отложено</span>
-                        <AnimatedMoney
-                          amount={actualSuggested}
-                          className="reserve-fix-value"
-                          currency={settings.currency}
-                          debounceMs={180}
-                        />
-                      </div>
-                      <div className="reserve-fix-row">
-                        <span>План</span>
-                        <strong className="reserve-fix-value">{formatMoney(plannedSavings, settings.currency)}</strong>
-                      </div>
-                    </div>
-                    <div className="reserve-fix-divider" aria-hidden="true" />
-                    <p className={planInsightClassName}>{planInsightText}</p>
-                  </div>
-                  <button className="primary-button" onClick={handleOpenClosureModal} type="button">
-                    Зафиксировать месяц
-                  </button>
-                </>
-              )}
-            </>
+                <button className="primary-button" onClick={handleOpenClosureModal} type="button">Зафиксировать месяц</button>
+              </>
+            )
           ) : (
             <p className="empty-state">Настрой месячный бюджет, чтобы фиксировать запас.</p>
           )}
@@ -354,7 +442,6 @@ export function ReserveScreen({
             <h2>История запаса</h2>
             <span>{sortedClosures.length ? `${sortedClosures.length}` : ''}</span>
           </div>
-
           {sortedClosures.length ? (
             <div className="reserve-history-list">
               {sortedClosures.map((closure) => (
@@ -373,6 +460,24 @@ export function ReserveScreen({
         </section>
       </main>
 
+      {goalEditor !== undefined ? (
+        <ReserveGoalModal
+          currency={settings.currency}
+          currentGoal={goalEditor}
+          goalCount={reserveGoals.length}
+          onClose={() => setGoalEditor(undefined)}
+          onSave={handleSaveGoal}
+          unallocatedReserve={unallocatedReserve}
+        />
+      ) : null}
+      {goalToDelete ? (
+        <ReserveGoalDeleteModal
+          currency={settings.currency}
+          goal={goalToDelete}
+          onCancel={() => setGoalToDelete(null)}
+          onConfirm={handleConfirmDeleteGoal}
+        />
+      ) : null}
       {closureModal}
     </>
   );

@@ -1,3 +1,5 @@
+import type { ReserveGoal, Settings } from '../types';
+
 export type ReserveCoreData = {
   reserveTotal: number;
   goalTitle: string;
@@ -5,6 +7,19 @@ export type ReserveCoreData = {
   goalProgress: number;
   remainingToGoal: number;
   currency: string;
+};
+
+export type ReserveConstellationData = {
+  allocatedTotal: number;
+  currency: Settings['currency'];
+  goals: ReserveGoal[];
+  onAddGoal: () => void;
+  onDeleteSelectedGoal: () => void;
+  onEditSelectedGoal: () => void;
+  onSelectGoal: (goalId: string) => void;
+  reserveTotal: number;
+  selectedGoalId: string | null;
+  unallocatedReserve: number;
 };
 
 export type ReserveVisualState = {
