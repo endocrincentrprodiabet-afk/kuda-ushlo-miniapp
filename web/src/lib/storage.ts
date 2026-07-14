@@ -211,6 +211,7 @@ export function loadReserveGoals(reserveTotal: number): ReserveGoal[] {
   const migratedGoal: ReserveGoal = {
     id: 'migrated-reserve-goal-v1',
     title: legacyGoal.title.trim() || 'Цель',
+    goalCategory: 'other',
     targetAmount: legacyGoal.targetAmount,
     allocatedAmount: Math.min(Math.max(0, Math.floor(reserveTotal)), legacyGoal.targetAmount),
     createdAt: migratedAt,

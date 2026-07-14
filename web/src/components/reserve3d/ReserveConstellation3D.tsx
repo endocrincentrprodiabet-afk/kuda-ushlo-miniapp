@@ -3,8 +3,9 @@ import { AdaptiveDpr, PerformanceMonitor, usePerformanceMonitor } from '@react-t
 import { Canvas, useThree } from '@react-three/fiber';
 import { AnimatedMoney } from '../AnimatedMoney';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
+import { getGoalProgress } from '../../lib/calculations';
 import { formatMoney } from '../../lib/format';
-import { pluralizeRu } from '../../content/uiCopy';
+import { getGoalCategoryLabel } from '../../lib/goalCategories';
 import type { ReserveConstellationData } from '../../lib/reserveVisual';
 import { ReserveConstellationFallback } from './ReserveConstellationFallback';
 import { ReserveConstellationScene } from './ReserveConstellationScene';
@@ -91,7 +92,7 @@ function useMobileConstellation(): boolean {
 }
 
 export default function ReserveConstellation3D(props: ReserveConstellationData) {
-  const { allocatedTotal, currency, goals, reserveTotal, selectedGoalId, unallocatedReserve } = props;
+  const { currency, goals, selectedGoalId } = props;
   const reducedMotion = usePrefersReducedMotion();
   const isMobile = useMobileConstellation();
   const canvasContainer = useRef<HTMLDivElement>(null);
@@ -99,6 +100,8 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
   const [quality, setQuality] = useState<ReserveQualityTier>(() => getInitialReserveQuality(reducedMotion));
   const isSceneActive = useSceneVisibility(canvasContainer);
   const qualityConfig = reserveQualityConfigs[quality];
+  const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? null;
+  const selectedProgress = selectedGoal ? getGoalProgress(selectedGoal) : 0;
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 719px), (max-width: 1024px) and (pointer: coarse)');
@@ -148,13 +151,20 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
 
   return (
     <section
-      className="reserve-core reserve-constellation"
+      className="reserve-core reserve-constellation reserve-active-goal"
       data-quality={quality}
-      aria-label={`Сейф. ${goals.length} ${pluralizeRu(goals.length, ['цель', 'цели', 'целей'])}`}
+      aria-label={selectedGoal ? `Активная цель: ${selectedGoal.title}` : 'Активная цель не выбрана'}
     >
+      {selectedGoal ? (
+        <header className="reserve-active-goal__header">
+          <p>{getGoalCategoryLabel(selectedGoal.goalCategory)}</p>
+          <h2>{selectedGoal.title}</h2>
+        </header>
+      ) : null}
+
       <div className="reserve-core__canvas reserve-constellation__canvas" ref={canvasContainer} aria-hidden="true">
         <Canvas
-          camera={{ fov: isMobile ? 39 : 37, near: 0.1, far: 40, position: [0, 0, isMobile ? 8.4 : 9.2] }}
+          camera={{ fov: isMobile ? 39 : 37, near: 0.1, far: 40, position: [0, 0, isMobile ? 6.5 : 7.1] }}
           dpr={qualityConfig.dpr}
           frameloop={useContinuousRendering ? 'always' : 'demand'}
           gl={{ alpha: true, antialias: quality !== 'low', powerPreference: 'high-performance' }}
@@ -169,36 +179,48 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
           >
             <AdaptivePerformanceDpr />
             <ReserveConstellationScene
-              goals={goals}
+              activeGoal={selectedGoal}
               isActive={isSceneActive}
               isMobile={isMobile}
-              onSelectGoal={props.onSelectGoal}
               quality={quality}
               reducedMotion={reducedMotion}
-              reserveTotal={reserveTotal}
-              selectedGoalId={selectedGoalId}
-              unallocatedReserve={unallocatedReserve}
             />
           </PerformanceMonitor>
         </Canvas>
       </div>
 
-      <div className="reserve-core__content reserve-constellation__content">
-        <p className="reserve-core__label">Всего накоплено</p>
-        <AnimatedMoney
-          amount={reserveTotal}
-          className="reserve-core__amount"
-          currency={currency}
-          debounceMs={reducedMotion ? 0 : 180}
-          durationMs={reducedMotion ? 0 : 380}
-        />
-        <div className="reserve-constellation__totals">
-          <span>По целям: {formatMoney(allocatedTotal, currency)}</span>
-          <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
+      {selectedGoal ? (
+        <div className="reserve-active-goal__details">
+          <div className="reserve-active-goal__saved">
+            <span>Накоплено</span>
+            <AnimatedMoney
+              amount={selectedGoal.allocatedAmount}
+              currency={currency}
+              debounceMs={reducedMotion ? 0 : 180}
+              durationMs={reducedMotion ? 0 : 380}
+            />
+          </div>
+          <dl className="reserve-active-goal__metrics">
+            <div>
+              <dt>Сумма цели</dt>
+              <dd>{formatMoney(selectedGoal.targetAmount, currency)}</dd>
+            </div>
+            <div>
+              <dt>Осталось</dt>
+              <dd>{formatMoney(Math.max(0, selectedGoal.targetAmount - selectedGoal.allocatedAmount), currency)}</dd>
+            </div>
+          </dl>
+          <div className="reserve-active-goal__progress">
+            <div>
+              <span>Прогресс</span>
+              <strong>{Math.round(selectedProgress * 100)}%</strong>
+            </div>
+            <span className="reserve-active-goal__progress-track" aria-hidden="true">
+              <span style={{ width: `${selectedProgress * 100}%` }} />
+            </span>
+          </div>
         </div>
-        {!goals.length ? <p className="reserve-core__empty">Цели появятся вокруг свободной суммы.</p> : null}
-        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или сохранения итога месяца здесь появится сумма в сейфе.</p> : null}
-      </div>
+      ) : null}
     </section>
   );
 }

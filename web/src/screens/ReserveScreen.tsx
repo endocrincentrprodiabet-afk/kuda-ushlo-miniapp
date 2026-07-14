@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { ReserveCoreErrorBoundary } from '../components/reserve3d/ReserveCoreErrorBoundary';
@@ -25,6 +25,7 @@ import {
 } from '../lib/calculations';
 import { MAX_RESERVE_GOALS } from '../lib/constants';
 import { formatMoney, formatSignedMoney } from '../lib/format';
+import { getGoalCategoryLabel } from '../lib/goalCategories';
 import type { ReserveConstellationData } from '../lib/reserveVisual';
 import type { Expense, IncomeEntry, ReserveClosure, ReserveGoal, ReserveTopUp, Settings } from '../types';
 
@@ -93,6 +94,7 @@ export function ReserveScreen({
   onNotify,
 }: ReserveScreenProps) {
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(() => reserveGoals[0]?.id ?? null);
+  const goalCardRefs = useRef(new Map<string, HTMLButtonElement>());
   const [goalEditor, setGoalEditor] = useState<ReserveGoal | null | undefined>(undefined);
   const [goalToDelete, setGoalToDelete] = useState<ReserveGoal | null>(null);
   const [closureModalOpen, setClosureModalOpen] = useState(false);
@@ -138,6 +140,31 @@ export function ReserveScreen({
   }, [reserveGoals]);
 
   useEffect(() => {
+    if (!selectedGoalId) {
+      return;
+    }
+
+    const selectedCard = goalCardRefs.current.get(selectedGoalId);
+    const slider = selectedCard?.parentElement;
+
+    if (!selectedCard || !slider) {
+      return;
+    }
+
+    const cardBounds = selectedCard.getBoundingClientRect();
+    const sliderBounds = slider.getBoundingClientRect();
+    const isOutsideViewport = cardBounds.left < sliderBounds.left || cardBounds.right > sliderBounds.right;
+
+    if (isOutsideViewport) {
+      selectedCard.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
+    }
+  }, [reserveGoals.length, selectedGoalId]);
+
+  useEffect(() => {
     if (!closureModalOpen) {
       return;
     }
@@ -162,7 +189,9 @@ export function ReserveScreen({
     }
   }
 
-  function handleSaveGoal(values: { title: string; targetAmount: number; allocatedAmount: number }) {
+  function handleSaveGoal(
+    values: Pick<ReserveGoal, 'title' | 'goalCategory' | 'targetAmount' | 'allocatedAmount'>,
+  ) {
     const now = new Date().toISOString();
 
     if (goalEditor) {
@@ -318,13 +347,11 @@ export function ReserveScreen({
           </div>
         </header>
 
-        <ReserveCoreErrorBoundary fallback={constellationFallback}>
-          <Suspense fallback={constellationFallback}>
-            <ReserveConstellation3D {...constellationProps} />
-          </Suspense>
-        </ReserveCoreErrorBoundary>
-
         <section className="card reserve-summary-card" aria-label="Распределение накоплений">
+          <div>
+            <span>Всего накоплено</span>
+            <AnimatedMoney amount={reserveTotal} currency={settings.currency} />
+          </div>
           <div>
             <span>По целям</span>
             <AnimatedMoney amount={allocatedTotal} currency={settings.currency} />
@@ -343,6 +370,14 @@ export function ReserveScreen({
           </button>
         </section>
 
+        {reserveGoals.length ? (
+          <ReserveCoreErrorBoundary fallback={constellationFallback}>
+            <Suspense fallback={constellationFallback}>
+              <ReserveConstellation3D {...constellationProps} />
+            </Suspense>
+          </ReserveCoreErrorBoundary>
+        ) : null}
+
         <section className={`card reserve-goals-card${reserveGoals.length ? '' : ' reserve-goals-card--empty'}`}>
           <div className="reserve-goals-card__header">
             <div className="section-title">
@@ -359,36 +394,31 @@ export function ReserveScreen({
           </div>
 
           {atGoalLimit ? <p className="reserve-goals-card__limit">Можно создать до 6 целей.</p> : null}
-          {unallocatedReserve > 0 ? (
-            <p className="reserve-goals-card__free">
-              Свободно для распределения: {formatMoney(unallocatedReserve, settings.currency)}
-            </p>
-          ) : null}
-
           {reserveGoals.length ? (
             <div className="reserve-goals-list">
               {reserveGoals.map((goal) => {
                 const progress = getGoalProgress(goal);
-                const remainingAmount = Math.max(0, goal.targetAmount - goal.allocatedAmount);
-                const progressStyle = { '--goal-progress': `${progress * 100}%` } as CSSProperties;
 
                 return (
                   <button
+                    aria-pressed={goal.id === selectedGoalId}
                     className={`reserve-goal-item${goal.id === selectedGoalId ? ' is-selected' : ''}`}
                     key={goal.id}
                     onClick={() => setSelectedGoalId(goal.id)}
-                    style={progressStyle}
+                    ref={(element) => {
+                      if (element) {
+                        goalCardRefs.current.set(goal.id, element);
+                      } else {
+                        goalCardRefs.current.delete(goal.id);
+                      }
+                    }}
                     type="button"
                   >
+                    <span className="reserve-goal-item__category">
+                      {getGoalCategoryLabel(goal.goalCategory)}
+                    </span>
                     <span className="reserve-goal-item__title">{goal.title}</span>
-                    <span className="reserve-goal-item__amounts">
-                      {formatMoney(goal.allocatedAmount, settings.currency)} из {formatMoney(goal.targetAmount, settings.currency)}
-                    </span>
                     <strong>{formatProgressPercent(progress)}</strong>
-                    <span className="reserve-goal-item__track" aria-hidden="true"><span /></span>
-                    <span className="reserve-goal-item__remaining">
-                      Осталось: {formatMoney(remainingAmount, settings.currency)}
-                    </span>
                   </button>
                 );
               })}
@@ -412,38 +442,17 @@ export function ReserveScreen({
           )}
 
           {selectedGoal ? (
-            <article className="reserve-selected-goal">
-              <div className="reserve-selected-goal__head">
-                <div>
-                  <span>Выбранная цель</span>
-                  <h3>{selectedGoal.title}</h3>
-                </div>
-                <strong>{formatProgressPercent(getGoalProgress(selectedGoal))}</strong>
-              </div>
-              <dl>
-                <div>
-                  <dt>Накоплено</dt>
-                  <dd>{formatMoney(selectedGoal.allocatedAmount, settings.currency)}</dd>
-                </div>
-                <div>
-                  <dt>Сумма цели</dt>
-                  <dd>{formatMoney(selectedGoal.targetAmount, settings.currency)}</dd>
-                </div>
-                <div>
-                  <dt>Осталось</dt>
-                  <dd>{formatMoney(Math.max(0, selectedGoal.targetAmount - selectedGoal.allocatedAmount), settings.currency)}</dd>
-                </div>
-              </dl>
+            <div className="reserve-selected-goal">
               <div className="reserve-selected-goal__actions">
                 <button className="primary-button" onClick={handleOpenEditGoal} type="button">Распределить</button>
                 <button className="secondary-button" onClick={handleOpenEditGoal} type="button">Изменить</button>
                 <button className="delete-button" onClick={() => setGoalToDelete(selectedGoal)} type="button">Удалить</button>
               </div>
-            </article>
+            </div>
           ) : reserveGoals.length ? (
             <div className="reserve-goals-select-state" role="status">
               <h3>Выбери цель</h3>
-              <p>Нажми на карточку или сферу, чтобы посмотреть детали.</p>
+              <p>Нажми на карточку, чтобы посмотреть детали.</p>
             </div>
           ) : null}
         </section>

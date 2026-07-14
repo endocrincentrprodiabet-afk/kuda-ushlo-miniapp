@@ -63,9 +63,24 @@ export type IncomeEntry = {
   createdAt: string;
 };
 
+export type GoalCategory =
+  | 'car'
+  | 'travel'
+  | 'tech'
+  | 'gift'
+  | 'home'
+  | 'education'
+  | 'other';
+
+export type GoalCategoryConfig = {
+  value: GoalCategory;
+  label: string;
+};
+
 export type ReserveGoal = {
   id: string;
   title: string;
+  goalCategory: GoalCategory;
   targetAmount: number;
   allocatedAmount: number;
   createdAt: string;

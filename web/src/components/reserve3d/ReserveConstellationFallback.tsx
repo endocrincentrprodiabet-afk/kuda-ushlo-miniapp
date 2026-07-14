@@ -1,75 +1,65 @@
-import type { CSSProperties } from 'react';
 import { AnimatedMoney } from '../AnimatedMoney';
 import { getGoalProgress } from '../../lib/calculations';
 import { formatMoney } from '../../lib/format';
+import { getGoalCategoryConfig, getGoalCategoryLabel } from '../../lib/goalCategories';
 import type { ReserveConstellationData } from '../../lib/reserveVisual';
 
 export function ReserveConstellationFallback({
-  allocatedTotal,
   currency,
   goals,
-  onDeleteSelectedGoal,
-  onEditSelectedGoal,
-  onSelectGoal,
-  reserveTotal,
   selectedGoalId,
-  unallocatedReserve,
 }: ReserveConstellationData) {
   const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? null;
 
-  return (
-    <section className="reserve-core reserve-core--fallback reserve-constellation-fallback">
-      <div className="reserve-constellation-fallback__visual" aria-label="Схема целей сейфа">
-        <div className="reserve-constellation-fallback__free">
-          <span>Свободно</span>
-          <strong>{formatMoney(unallocatedReserve, currency)}</strong>
-        </div>
-        {goals.length ? (
-          <div className="reserve-constellation-fallback__goals">
-            {goals.map((goal) => {
-              const progress = getGoalProgress(goal);
-              const style = { '--goal-progress': `${progress * 100}%` } as CSSProperties;
+  if (!selectedGoal) {
+    return null;
+  }
 
-              return (
-                <button
-                  className={goal.id === selectedGoalId ? 'is-selected' : ''}
-                  key={goal.id}
-                  onClick={() => onSelectGoal(goal.id)}
-                  style={style}
-                  type="button"
-                >
-                  <span>{goal.title}</span>
-                  <strong>{Math.round(progress * 100)}%</strong>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <p>Цели появятся вокруг свободной суммы.</p>
-        )}
+  const category = getGoalCategoryConfig(selectedGoal.goalCategory).value;
+  const categoryLabel = getGoalCategoryLabel(category);
+  const progress = getGoalProgress(selectedGoal);
+  const remainingAmount = Math.max(0, selectedGoal.targetAmount - selectedGoal.allocatedAmount);
+
+  return (
+    <section
+      className="reserve-core reserve-core--fallback reserve-constellation-fallback reserve-active-goal"
+      aria-label={`Активная цель: ${selectedGoal.title}`}
+    >
+      <header className="reserve-active-goal__header">
+        <p>{categoryLabel}</p>
+        <h2>{selectedGoal.title}</h2>
+      </header>
+
+      <div className="reserve-category-fallback" data-category={category} aria-hidden="true">
+        <span className="reserve-category-fallback__shape reserve-category-fallback__shape--primary" />
+        <span className="reserve-category-fallback__shape reserve-category-fallback__shape--secondary" />
+        <span className="reserve-category-fallback__accent" />
       </div>
 
-      <div className="reserve-core__content reserve-constellation__content">
-        <p className="reserve-core__label">Всего накоплено</p>
-        <AnimatedMoney amount={reserveTotal} className="reserve-core__amount" currency={currency} debounceMs={180} />
-        <div className="reserve-constellation__totals">
-          <span>По целям: {formatMoney(allocatedTotal, currency)}</span>
-          <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
+      <div className="reserve-active-goal__details">
+        <div className="reserve-active-goal__saved">
+          <span>Накоплено</span>
+          <AnimatedMoney amount={selectedGoal.allocatedAmount} currency={currency} debounceMs={0} />
         </div>
-        {selectedGoal ? (
-          <div className="reserve-constellation-fallback__actions">
-            <strong>{selectedGoal.title}</strong>
-            <span>
-              {formatMoney(selectedGoal.allocatedAmount, currency)} из {formatMoney(selectedGoal.targetAmount, currency)}
-            </span>
-            <button className="text-button" onClick={onEditSelectedGoal} type="button">
-              Изменить
-            </button>
-            <button className="delete-button" onClick={onDeleteSelectedGoal} type="button">
-              Удалить
-            </button>
+        <dl className="reserve-active-goal__metrics">
+          <div>
+            <dt>Сумма цели</dt>
+            <dd>{formatMoney(selectedGoal.targetAmount, currency)}</dd>
           </div>
-        ) : null}
+          <div>
+            <dt>Осталось</dt>
+            <dd>{formatMoney(remainingAmount, currency)}</dd>
+          </div>
+        </dl>
+        <div className="reserve-active-goal__progress">
+          <div>
+            <span>Прогресс</span>
+            <strong>{Math.round(progress * 100)}%</strong>
+          </div>
+          <span className="reserve-active-goal__progress-track" aria-hidden="true">
+            <span style={{ width: `${progress * 100}%` }} />
+          </span>
+        </div>
       </div>
     </section>
   );

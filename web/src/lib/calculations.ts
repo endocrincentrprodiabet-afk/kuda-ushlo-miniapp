@@ -1,4 +1,5 @@
 import { getWeekEnd, isToday, isWithinCurrentWeek, isWithinLastSevenDays, toDateInputValue } from './date';
+import { isGoalCategory } from './goalCategories';
 import type {
   Expense,
   ExpenseCategory,
@@ -436,6 +437,7 @@ export function sanitizeReserveGoal(goal: Partial<ReserveGoal>): ReserveGoal | n
   return {
     id: goal.id.trim(),
     title: typeof goal.title === 'string' && goal.title.trim() ? goal.title.trim() : 'Цель',
+    goalCategory: isGoalCategory(goal.goalCategory) ? goal.goalCategory : 'other',
     targetAmount,
     allocatedAmount,
     createdAt,

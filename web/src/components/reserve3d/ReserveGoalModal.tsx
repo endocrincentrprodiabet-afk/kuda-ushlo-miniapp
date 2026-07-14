@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from
 import { createPortal } from 'react-dom';
 import { uiCopy } from '../../content/uiCopy';
 import { formatMoney } from '../../lib/format';
+import { getGoalCategoryConfig, GOAL_CATEGORIES } from '../../lib/goalCategories';
 import type { ReserveGoal, Settings } from '../../types';
 
 type ReserveGoalModalProps = {
@@ -10,7 +11,7 @@ type ReserveGoalModalProps = {
   goalCount: number;
   unallocatedReserve: number;
   onClose: () => void;
-  onSave: (values: { title: string; targetAmount: number; allocatedAmount: number }) => void;
+  onSave: (values: Pick<ReserveGoal, 'title' | 'goalCategory' | 'targetAmount' | 'allocatedAmount'>) => void;
 };
 
 function parseAmount(value: string): number {
@@ -26,6 +27,9 @@ export function ReserveGoalModal({
   onClose,
   onSave,
 }: ReserveGoalModalProps) {
+  const [goalCategory, setGoalCategory] = useState(() =>
+    getGoalCategoryConfig(currentGoal?.goalCategory).value,
+  );
   const [title, setTitle] = useState(currentGoal?.title ?? '');
   const [targetAmount, setTargetAmount] = useState(String(currentGoal?.targetAmount ?? ''));
   const [allocatedAmount, setAllocatedAmount] = useState(String(currentGoal?.allocatedAmount ?? 0));
@@ -99,6 +103,7 @@ export function ReserveGoalModal({
 
     onSave({
       title: normalizedTitle,
+      goalCategory,
       targetAmount: parsedTarget,
       allocatedAmount: parsedAllocation,
     });
@@ -118,6 +123,30 @@ export function ReserveGoalModal({
           <p className="subtitle">Цели в сейфе</p>
           <h2 id="reserve-goal-modal-title">{dialogTitle}</h2>
         </div>
+
+        <fieldset className="reserve-goal-category" aria-describedby="reserve-goal-category-helper">
+          <legend>Категория цели</legend>
+          <div className="reserve-goal-category__options">
+            {GOAL_CATEGORIES.map((category) => {
+              const isSelected = category.value === goalCategory;
+
+              return (
+                <button
+                  aria-pressed={isSelected}
+                  className={`reserve-goal-category__option${isSelected ? ' is-selected' : ''}`}
+                  key={category.value}
+                  onClick={() => setGoalCategory(category.value)}
+                  type="button"
+                >
+                  {category.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="reserve-goal-category__helper" id="reserve-goal-category-helper">
+            Категория определяет 3D-объект в сейфе.
+          </p>
+        </fieldset>
 
         <label className="confirm-modal__field reserve-modal__field">
           <span>На что копим?</span>
