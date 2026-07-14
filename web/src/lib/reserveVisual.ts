@@ -6,7 +6,7 @@ export type ReserveCoreData = {
   targetAmount: number;
   goalProgress: number;
   remainingToGoal: number;
-  currency: string;
+  currency: Settings['currency'];
 };
 
 export type ReserveConstellationData = {

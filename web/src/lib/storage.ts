@@ -1,6 +1,7 @@
 import { DEFAULT_RESERVE_GOAL, DEFAULT_SETTINGS, MAX_RESERVE_GOALS } from './constants';
 import { reconcileReserveGoalAllocations, sanitizeReserveGoal } from './calculations';
 import { toDateInputValue } from './date';
+import { normalizeCurrencyCode } from './currency';
 import type {
   Expense,
   IncomeEntry,
@@ -48,7 +49,7 @@ export function loadSettings(): Settings {
   const settings = {
     ...DEFAULT_SETTINGS,
     ...rawSettings,
-    currency: 'RUB' as const,
+    currency: normalizeCurrencyCode(rawSettings.currency),
   };
   const monthlyBudget = Math.max(0, Number(settings.monthlyBudget) || 0);
   const availableNow =
@@ -102,7 +103,7 @@ export function saveSettings(settings: Settings): void {
       secondIncomeDate,
       regularIncomeAmount: Math.max(0, Number(settings.regularIncomeAmount) || 0),
       savingsGoal,
-      currency: 'RUB' as const,
+      currency: normalizeCurrencyCode(settings.currency),
     }),
   );
 }

@@ -7,7 +7,14 @@ import {
   isWithinCurrentWeek,
   toDateInputValue,
 } from '../lib/date';
-import { formatMoney } from '../lib/format';
+import {
+  getHistoryEmptyCopy,
+  getIncomeEntryLabel,
+  getIncomeEntryNote,
+  uiCopy,
+  type EmptyStateCopy,
+} from '../content/uiCopy';
+import { formatMoney, formatSignedMoney } from '../lib/format';
 import type { Expense, HistoryFilter, IncomeEntry, Settings } from '../types';
 
 type HistoryScreenProps = {
@@ -54,21 +61,6 @@ type WeekGroup = {
   title: string;
   days: DayGroup[];
 };
-
-const incomeKindLabels: Record<NonNullable<IncomeEntry['kind']>, string> = {
-  salary: 'Зарплата',
-  bonus: 'Премия',
-  side: 'Подработка',
-  other: 'Другое',
-};
-
-function getIncomeTitle(entry: IncomeEntry): string {
-  if (entry.kind && incomeKindLabels[entry.kind]) {
-    return incomeKindLabels[entry.kind];
-  }
-
-  return entry.type === 'salary' ? 'Зарплата' : 'Начисление';
-}
 
 function sortOperationsByDate(operations: HistoryOperation[]): HistoryOperation[] {
   return [...operations].sort((a, b) => {
@@ -121,7 +113,7 @@ function groupOperationsByWeek(operations: HistoryOperation[]): WeekGroup[] {
 type OperationListProps = {
   operations: HistoryOperation[];
   currency: Settings['currency'];
-  emptyText: string;
+  emptyCopy: EmptyStateCopy;
   showDate?: boolean;
   onDeleteExpense: (id: string) => void;
   onEditExpense: (expense: Expense) => void;
@@ -132,7 +124,7 @@ type OperationListProps = {
 function OperationList({
   operations,
   currency,
-  emptyText,
+  emptyCopy,
   showDate = true,
   onDeleteExpense,
   onEditExpense,
@@ -140,15 +132,20 @@ function OperationList({
   onEditIncomeEntry,
 }: OperationListProps) {
   if (operations.length === 0) {
-    return <p className="empty-state">{emptyText}</p>;
+    return (
+      <div className="empty-state">
+        <strong>{emptyCopy.title}</strong>
+        <span>{emptyCopy.description}</span>
+      </div>
+    );
   }
 
   return (
     <div className="expense-list">
       {operations.map((operation) => {
         const isIncome = operation.kind === 'income';
-        const title = isIncome ? getIncomeTitle(operation.incomeEntry) : operation.expense.category;
-        const note = isIncome ? operation.incomeEntry.note : operation.expense.note;
+        const title = isIncome ? getIncomeEntryLabel(operation.incomeEntry) : operation.expense.category;
+        const note = isIncome ? getIncomeEntryNote(operation.incomeEntry) : operation.expense.note;
         const amount = isIncome ? operation.incomeEntry.amount : operation.expense.amount;
 
         return (
@@ -157,8 +154,7 @@ function OperationList({
               <div className="expense-head">
                 <strong className="expense-category">{title}</strong>
                 <strong className={`expense-amount${isIncome ? ' expense-amount--income' : ''}`}>
-                  {isIncome ? '+' : ''}
-                  {formatMoney(amount, currency)}
+                  {isIncome ? formatSignedMoney(amount, currency) : formatMoney(amount, currency)}
                 </strong>
               </div>
               <div className="expense-meta">
@@ -168,13 +164,15 @@ function OperationList({
             </div>
             <div className="expense-actions">
               <button
+                aria-label={`${uiCopy.actions.edit} ${isIncome ? 'доход' : 'расход'}`}
                 className="expense-action-button"
                 onClick={() => (isIncome ? onEditIncomeEntry(operation.incomeEntry) : onEditExpense(operation.expense))}
                 type="button"
               >
-                Редактировать
+                {uiCopy.actions.edit}
               </button>
               <button
+                aria-label={`Удалить ${isIncome ? 'доход' : 'расход'}`}
                 className="delete-button"
                 onClick={() => (isIncome ? onDeleteIncomeEntry(operation.id) : onDeleteExpense(operation.id))}
                 type="button"
@@ -226,13 +224,13 @@ export function HistoryScreen({
   const dayGroups = groupOperationsByDay(sortedOperations);
   const weekGroups = filter === 'all' ? groupOperationsByWeek(sortedOperations) : [];
   const currentWeekStart = toDateInputValue(getWeekStart(new Date()));
-  const emptyText = 'Записей пока нет';
+  const emptyCopy = getHistoryEmptyCopy(filter);
 
   return (
     <main className="screen">
       <header className="top-header">
         <div>
-          <p className="subtitle">Все записи</p>
+          <p className="subtitle">Все операции</p>
           <h1>История</h1>
         </div>
       </header>
@@ -269,7 +267,7 @@ export function HistoryScreen({
                       <OperationList
                         operations={day.operations}
                         currency={settings.currency}
-                        emptyText={emptyText}
+                        emptyCopy={emptyCopy}
                         showDate={false}
                         onDeleteExpense={onDeleteExpense}
                         onEditExpense={onEditExpense}
@@ -294,7 +292,7 @@ export function HistoryScreen({
                   <OperationList
                     operations={day.operations}
                     currency={settings.currency}
-                    emptyText={emptyText}
+                    emptyCopy={emptyCopy}
                     showDate={!showDayTitle}
                     onDeleteExpense={onDeleteExpense}
                     onEditExpense={onEditExpense}
@@ -309,7 +307,7 @@ export function HistoryScreen({
           <OperationList
             operations={[]}
             currency={settings.currency}
-            emptyText={emptyText}
+            emptyCopy={emptyCopy}
             onDeleteExpense={onDeleteExpense}
             onEditExpense={onEditExpense}
             onDeleteIncomeEntry={onDeleteIncomeEntry}

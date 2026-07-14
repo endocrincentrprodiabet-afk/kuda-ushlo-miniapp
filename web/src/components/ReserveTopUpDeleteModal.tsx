@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getDeleteOperationCopy, uiCopy } from '../content/uiCopy';
 import { formatMoney } from '../lib/format';
 import type { ReserveTopUp, Settings } from '../types';
 
@@ -18,6 +19,11 @@ export function ReserveTopUpDeleteModal({
   onCancel,
   onConfirm,
 }: ReserveTopUpDeleteModalProps) {
+  const copy = getDeleteOperationCopy('topUp', {
+    amount: formatMoney(topUp.amount, currency),
+    willAdjustAllocations,
+  });
+
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -47,22 +53,18 @@ export function ReserveTopUpDeleteModal({
       >
         <div className="confirm-modal__head">
           <p className="subtitle">Подтверждение</p>
-          <h2 id="delete-reserve-top-up-title">Удалить пополнение?</h2>
+          <h2 id="delete-reserve-top-up-title">{copy.title}</h2>
         </div>
-        <p className="reserve-modal__text">
-          Сумма в сейфе уменьшится на {formatMoney(topUp.amount, currency)}.
-        </p>
-        {willAdjustAllocations ? (
-          <p className="confirm-modal__warning">
-            Часть распределений по целям будет автоматически скорректирована.
-          </p>
+        <p className="reserve-modal__text">{copy.body}</p>
+        {copy.additionalWarning ? (
+          <p className="confirm-modal__warning">{copy.additionalWarning}</p>
         ) : null}
         <div className="confirm-modal__actions">
           <button className="secondary-button" onClick={onCancel} type="button">
-            Отмена
+            {uiCopy.actions.cancel}
           </button>
           <button className="danger-button reserve-top-up-delete-button" onClick={onConfirm} type="button">
-            Удалить пополнение
+            {copy.action}
           </button>
         </div>
       </section>

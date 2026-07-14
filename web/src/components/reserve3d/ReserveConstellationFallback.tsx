@@ -8,7 +8,6 @@ export function ReserveConstellationFallback({
   allocatedTotal,
   currency,
   goals,
-  onAddGoal,
   onDeleteSelectedGoal,
   onEditSelectedGoal,
   onSelectGoal,
@@ -20,7 +19,7 @@ export function ReserveConstellationFallback({
 
   return (
     <section className="reserve-core reserve-core--fallback reserve-constellation-fallback">
-      <div className="reserve-constellation-fallback__visual" aria-label="Схема целей без 3D">
+      <div className="reserve-constellation-fallback__visual" aria-label="Схема целей сейфа">
         <div className="reserve-constellation-fallback__free">
           <span>Свободно</span>
           <strong>{formatMoney(unallocatedReserve, currency)}</strong>
@@ -63,11 +62,6 @@ export function ReserveConstellationFallback({
             <span>
               {formatMoney(selectedGoal.allocatedAmount, currency)} из {formatMoney(selectedGoal.targetAmount, currency)}
             </span>
-            {goals.length < 6 ? (
-              <button className="text-button" onClick={onAddGoal} type="button">
-                Добавить
-              </button>
-            ) : null}
             <button className="text-button" onClick={onEditSelectedGoal} type="button">
               Изменить
             </button>

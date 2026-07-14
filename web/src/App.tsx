@@ -3,6 +3,7 @@ import { BottomNav } from './components/BottomNav';
 import { ReserveTopUpDeleteModal } from './components/ReserveTopUpDeleteModal';
 import { ReserveTopUpModal, type ReserveTopUpValues } from './components/ReserveTopUpModal';
 import { SplashScreen } from './components/SplashScreen';
+import { getDeleteOperationCopy, uiCopy } from './content/uiCopy';
 import { AddExpenseScreen } from './screens/AddExpenseScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -16,7 +17,7 @@ import {
   reconcileReserveGoalAllocations,
 } from './lib/calculations';
 import { formatDate } from './lib/date';
-import { formatMoney } from './lib/format';
+import { formatMoney, formatSignedMoney } from './lib/format';
 import {
   clearAllData,
   loadIncomeEntries,
@@ -83,7 +84,6 @@ export default function App() {
     loadReserveGoals(getReserveTotal(reserveClosures, reserveTopUps)),
   );
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('today');
-  const [reportStatus, setReportStatus] = useState('');
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [incomeEntryToDelete, setIncomeEntryToDelete] = useState<IncomeEntry | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -186,20 +186,24 @@ export default function App() {
 
   function handleAddExpense(expense: Expense) {
     setExpenses((current) => [expense, ...current]);
+    setAppMessage(uiCopy.toasts.expenseAdded);
   }
 
   function handleAddIncomeEntry(entry: IncomeEntry) {
     setIncomeEntries((current) => [entry, ...current]);
+    setAppMessage(uiCopy.toasts.incomeAdded);
   }
 
   function handleUpdateExpense(expense: Expense) {
     setExpenses((current) => current.map((item) => (item.id === expense.id ? expense : item)));
     setEditingExpense(null);
+    setAppMessage(uiCopy.toasts.changesSaved);
   }
 
   function handleUpdateIncomeEntry(entry: IncomeEntry) {
     setIncomeEntries((current) => current.map((item) => (item.id === entry.id ? entry : item)));
     setEditingIncomeEntry(null);
+    setAppMessage(uiCopy.toasts.changesSaved);
   }
 
   function handleRequestDeleteExpense(id: string) {
@@ -218,6 +222,7 @@ export default function App() {
     const id = expenseToDelete.id;
     setExpenses((current) => current.filter((expense) => expense.id !== id));
     setExpenseToDelete(null);
+    setAppMessage(uiCopy.toasts.expenseDeleted);
   }
 
   function handleConfirmDeleteIncomeEntry() {
@@ -228,6 +233,7 @@ export default function App() {
     const id = incomeEntryToDelete.id;
     setIncomeEntries((current) => current.filter((entry) => entry.id !== id));
     setIncomeEntryToDelete(null);
+    setAppMessage(uiCopy.toasts.incomeDeleted);
   }
 
   function handleEditExpense(expense: Expense) {
@@ -278,7 +284,7 @@ export default function App() {
     setReserveTopUps(nextTopUps);
     setReserveGoals((current) => reconcileReserveGoalAllocations(current, nextReserveTotal));
     setReserveTopUpEditor(undefined);
-    setAppMessage(reserveTopUpEditor ? 'Пополнение изменено.' : 'Сейф пополнен.');
+    setAppMessage(reserveTopUpEditor ? uiCopy.toasts.topUpChanged : uiCopy.toasts.reserveToppedUp);
   }
 
   function handleConfirmDeleteReserveTopUp() {
@@ -292,7 +298,7 @@ export default function App() {
     setReserveTopUps(nextTopUps);
     setReserveGoals((current) => reconcileReserveGoalAllocations(current, nextReserveTotal));
     setReserveTopUpToDelete(null);
-    setAppMessage('Пополнение удалено.');
+    setAppMessage(uiCopy.toasts.topUpDeleted);
   }
 
   function handleNavigate(nextScreen: Screen) {
@@ -329,13 +335,22 @@ export default function App() {
     setReserveTopUps([]);
     setReserveTopUpEditor(undefined);
     setReserveTopUpToDelete(null);
-    setAppMessage('');
-    setReportStatus('');
+    setAppMessage(uiCopy.toasts.dataCleared);
   }
 
   function handleSendReport() {
-    const result = sendTelegramReport(expenses, settings, incomeEntries);
-    setReportStatus(result.statusMessage);
+    sendTelegramReport(expenses, settings, incomeEntries);
+    setAppMessage(uiCopy.toasts.reportCreated);
+  }
+
+  function handleSaveSettings(nextSettings: Settings) {
+    setSettings(nextSettings);
+    setAppMessage(uiCopy.toasts.settingsSaved);
+  }
+
+  function handleChangeCurrency(currency: Settings['currency']) {
+    setSettings((current) => ({ ...current, currency }));
+    setAppMessage(uiCopy.toasts.currencyChanged);
   }
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
@@ -404,12 +419,12 @@ export default function App() {
             onNavigate={handleNavigate}
             onOpenMoneyFlow={handleOpenMoneyFlow}
             onSendReport={handleSendReport}
-            reportStatus={reportStatus}
           />
         ) : null}
 
         {!activeDetail && screen === 'add' ? (
           <AddExpenseScreen
+            currency={settings.currency}
             editExpense={editingExpense}
             editIncomeEntry={editingIncomeEntry}
             initialMode={addScreenMode}
@@ -440,7 +455,8 @@ export default function App() {
           <SettingsScreen
             settings={settings}
             incomeEntries={incomeEntries}
-            onSaveSettings={setSettings}
+            onChangeCurrency={handleChangeCurrency}
+            onSaveSettings={handleSaveSettings}
             onOpenAddIncome={handleOpenAddIncome}
             onOpenReserveTopUp={() => handleOpenReserveTopUp()}
             onClearData={handleClearData}
@@ -459,6 +475,7 @@ export default function App() {
             onSaveReserveClosures={setReserveClosures}
             onOpenReserveTopUp={handleOpenReserveTopUp}
             onDeleteReserveTopUp={setReserveTopUpToDelete}
+            onNotify={setAppMessage}
           />
         ) : null}
 
@@ -481,7 +498,7 @@ export default function App() {
           <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-expense-title">
             <div className="confirm-modal__head">
               <p className="subtitle">Подтверждение</p>
-              <h2 id="delete-expense-title">Удалить расход?</h2>
+              <h2 id="delete-expense-title">{getDeleteOperationCopy('expense').title}</h2>
             </div>
             <div className="confirm-modal__expense">
               <div>
@@ -503,13 +520,13 @@ export default function App() {
                 <strong>{formatDate(expenseToDelete.date)}</strong>
               </div>
             </div>
-            <p className="confirm-modal__warning">Это действие нельзя отменить.</p>
+            <p className="confirm-modal__warning">{getDeleteOperationCopy('expense').body}</p>
             <div className="confirm-modal__actions">
               <button className="secondary-button" onClick={() => setExpenseToDelete(null)} type="button">
                 Отмена
               </button>
               <button className="danger-button" onClick={handleConfirmDeleteExpense} type="button">
-                Удалить
+                {getDeleteOperationCopy('expense').action}
               </button>
             </div>
           </section>
@@ -521,12 +538,12 @@ export default function App() {
           <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-income-title">
             <div className="confirm-modal__head">
               <p className="subtitle">Подтверждение</p>
-              <h2 id="delete-income-title">Удалить начисление?</h2>
+              <h2 id="delete-income-title">{getDeleteOperationCopy('income').title}</h2>
             </div>
             <div className="confirm-modal__expense">
               <div>
                 <span>Сумма</span>
-                <strong>+{formatMoney(incomeEntryToDelete.amount, settings.currency)}</strong>
+                <strong>{formatSignedMoney(incomeEntryToDelete.amount, settings.currency)}</strong>
               </div>
               {incomeEntryToDelete.note ? (
                 <div>
@@ -539,13 +556,13 @@ export default function App() {
                 <strong>{formatDate(incomeEntryToDelete.date)}</strong>
               </div>
             </div>
-            <p className="confirm-modal__warning">Это действие нельзя отменить.</p>
+            <p className="confirm-modal__warning">{getDeleteOperationCopy('income').body}</p>
             <div className="confirm-modal__actions">
               <button className="secondary-button" onClick={() => setIncomeEntryToDelete(null)} type="button">
                 Отмена
               </button>
               <button className="danger-button" onClick={handleConfirmDeleteIncomeEntry} type="button">
-                Удалить
+                {getDeleteOperationCopy('income').action}
               </button>
             </div>
           </section>
@@ -554,6 +571,7 @@ export default function App() {
 
       {reserveTopUpEditor !== undefined ? (
         <ReserveTopUpModal
+          currency={settings.currency}
           currentTopUp={reserveTopUpEditor}
           onClose={() => setReserveTopUpEditor(undefined)}
           onSave={handleSaveReserveTopUp}

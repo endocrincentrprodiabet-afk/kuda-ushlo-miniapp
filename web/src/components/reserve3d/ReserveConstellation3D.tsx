@@ -4,6 +4,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { AnimatedMoney } from '../AnimatedMoney';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { formatMoney } from '../../lib/format';
+import { pluralizeRu } from '../../content/uiCopy';
 import type { ReserveConstellationData } from '../../lib/reserveVisual';
 import { ReserveConstellationFallback } from './ReserveConstellationFallback';
 import { ReserveConstellationScene } from './ReserveConstellationScene';
@@ -149,7 +150,7 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
     <section
       className="reserve-core reserve-constellation"
       data-quality={quality}
-      aria-label={`Система накоплений. Целей: ${goals.length}`}
+      aria-label={`Сейф. ${goals.length} ${pluralizeRu(goals.length, ['цель', 'цели', 'целей'])}`}
     >
       <div className="reserve-core__canvas reserve-constellation__canvas" ref={canvasContainer} aria-hidden="true">
         <Canvas
@@ -196,7 +197,7 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
           <span>Свободно: {formatMoney(unallocatedReserve, currency)}</span>
         </div>
         {!goals.length ? <p className="reserve-core__empty">Цели появятся вокруг свободной суммы.</p> : null}
-        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или фиксации месяца здесь появится сумма в сейфе.</p> : null}
+        {reserveTotal <= 0 ? <p className="reserve-core__empty">После пополнения или сохранения итога месяца здесь появится сумма в сейфе.</p> : null}
       </div>
     </section>
   );

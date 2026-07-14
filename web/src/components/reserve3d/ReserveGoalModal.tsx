@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { uiCopy } from '../../content/uiCopy';
 import { formatMoney } from '../../lib/format';
 import type { ReserveGoal, Settings } from '../../types';
 
@@ -82,7 +83,7 @@ export function ReserveGoalModal({
     }
 
     if (parsedTarget <= 0) {
-      setError('Сумма цели должна быть больше нуля.');
+      setError(uiCopy.errors.positiveAmount);
       return;
     }
 
@@ -133,29 +134,35 @@ export function ReserveGoalModal({
 
         <label className="confirm-modal__field reserve-modal__field">
           <span>Сумма цели</span>
-          <input
-            inputMode="numeric"
-            min="0"
-            onChange={(event) => handleTargetChange(event.target.value)}
-            type="number"
-            value={targetAmount}
-          />
+          <div className="money-input">
+            <input
+              inputMode="numeric"
+              min="0"
+              onChange={(event) => handleTargetChange(event.target.value)}
+              type="number"
+              value={targetAmount}
+            />
+            <span className="money-input__currency">{currency}</span>
+          </div>
         </label>
 
         <div className="reserve-allocation-control">
           <label className="confirm-modal__field reserve-modal__field">
-            <span>Распределить из свободной суммы</span>
-            <input
-              inputMode="numeric"
-              max={allocationMaximum}
-              min="0"
-              onChange={(event) => handleAllocationChange(event.target.value)}
-              type="number"
-              value={allocatedAmount}
-            />
+            <span>Распределить сейчас</span>
+            <div className="money-input">
+              <input
+                inputMode="numeric"
+                max={allocationMaximum}
+                min="0"
+                onChange={(event) => handleAllocationChange(event.target.value)}
+                type="number"
+                value={allocatedAmount}
+              />
+              <span className="money-input__currency">{currency}</span>
+            </div>
           </label>
           <input
-            aria-label="Распределить из свободной суммы"
+            aria-label="Распределить сейчас"
             className="reserve-allocation-slider"
             disabled={allocationMaximum <= 0}
             max={allocationMaximum}
@@ -167,13 +174,13 @@ export function ReserveGoalModal({
             value={Math.min(parsedAllocation, allocationMaximum)}
           />
           <div className="reserve-allocation-caption">
-            <span>0 ₽</span>
+            <span>{formatMoney(0, currency)}</span>
             <span>{formatMoney(allocationMaximum, currency)}</span>
           </div>
         </div>
 
         <p className="reserve-modal__available">
-          Свободно для распределения: {formatMoney(unallocatedReserve, currency)}
+          Свободно: {formatMoney(unallocatedReserve, currency)}
         </p>
         {error ? <p className="form-error reserve-goal-modal__error">{error}</p> : null}
 

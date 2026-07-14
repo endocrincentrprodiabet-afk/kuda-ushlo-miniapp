@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { incomeKindLabels, uiCopy } from '../content/uiCopy';
 import { CATEGORIES } from '../lib/constants';
 import { toDateInputValue } from '../lib/date';
-import type { Expense, ExpenseCategory, IncomeEntry, Screen } from '../types';
+import type { CurrencyCode, Expense, ExpenseCategory, IncomeEntry, Screen } from '../types';
 
 type AddExpenseScreenProps = {
+  currency: CurrencyCode;
   onAddExpense: (expense: Expense) => void;
   onAddIncomeEntry: (entry: IncomeEntry) => void;
   onUpdateExpense: (expense: Expense) => void;
@@ -18,13 +20,6 @@ type AddExpenseScreenProps = {
 type OperationMode = 'expense' | 'income';
 type ManualIncomeKind = 'salary' | 'bonus' | 'side' | 'other';
 
-const incomeKindLabels: Record<ManualIncomeKind, string> = {
-  salary: 'Зарплата',
-  bonus: 'Премия',
-  side: 'Подработка',
-  other: 'Другое',
-};
-
 function getIncomeKind(entry?: IncomeEntry | null): ManualIncomeKind {
   if (entry?.kind === 'salary' || entry?.kind === 'bonus' || entry?.kind === 'side' || entry?.kind === 'other') {
     return entry.kind;
@@ -34,6 +29,7 @@ function getIncomeKind(entry?: IncomeEntry | null): ManualIncomeKind {
 }
 
 export function AddExpenseScreen({
+  currency,
   onAddExpense,
   onAddIncomeEntry,
   onUpdateExpense,
@@ -70,7 +66,7 @@ export function AddExpenseScreen({
     const parsedAmount = Number(amount.replace(',', '.'));
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError('Сумма должна быть больше нуля');
+      setError(uiCopy.errors.positiveAmount);
       return;
     }
 
@@ -127,12 +123,20 @@ export function AddExpenseScreen({
     onNavigate(isEditMode ? returnScreen : 'home');
   }
 
+  const pageTitle = isIncomeEditMode
+    ? 'Изменить доход'
+    : isExpenseEditMode
+      ? 'Изменить расход'
+      : operationMode === 'income'
+        ? 'Добавить доход'
+        : 'Добавить расход';
+
   return (
     <main className="screen">
       <header className="top-header">
         <div>
-          <p className="subtitle">{isEditMode ? 'Редактирование записи' : 'Новая запись'}</p>
-          <h1>{isIncomeEditMode ? 'Редактировать начисление' : isExpenseEditMode ? 'Редактировать расход' : 'Добавить операцию'}</h1>
+          <p className="subtitle">Новая операция</p>
+          <h1>{pageTitle}</h1>
         </div>
       </header>
 
@@ -151,21 +155,24 @@ export function AddExpenseScreen({
               onClick={() => setOperationMode('income')}
               type="button"
             >
-              Начисление
+              Доход
             </button>
           </div>
         ) : null}
 
         <label className="amount-field">
           <span>Сумма</span>
-          <input
-            inputMode="decimal"
-            min="0"
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0"
-            type="number"
-            value={amount}
-          />
+          <div className="money-input money-input--large">
+            <input
+              inputMode="decimal"
+              min="0"
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0"
+              type="number"
+              value={amount}
+            />
+            <span className="money-input__currency">{currency}</span>
+          </div>
         </label>
 
         {operationMode === 'expense' && !isIncomeEditMode ? (
@@ -186,7 +193,7 @@ export function AddExpenseScreen({
           </fieldset>
         ) : (
           <fieldset>
-            <legend>Тип начисления</legend>
+            <legend>Тип дохода</legend>
             <div className="chips">
               {(Object.keys(incomeKindLabels) as ManualIncomeKind[]).map((item) => (
                 <button
@@ -204,7 +211,12 @@ export function AddExpenseScreen({
 
         <label>
           <span>Комментарий</span>
-          <input onChange={(event) => setNote(event.target.value)} placeholder="Например, кофе" type="text" value={note} />
+          <input
+            onChange={(event) => setNote(event.target.value)}
+            placeholder={operationMode === 'income' ? 'Например, премия' : 'Например, кофе'}
+            type="text"
+            value={note}
+          />
         </label>
 
         <label>
@@ -215,7 +227,7 @@ export function AddExpenseScreen({
         {error ? <p className="form-error">{error}</p> : null}
 
         <button className="primary-button" type="submit">
-          {isEditMode ? 'Сохранить изменения' : operationMode === 'income' ? 'Сохранить начисление' : 'Сохранить'}
+          {isEditMode ? 'Сохранить изменения' : operationMode === 'income' ? 'Сохранить доход' : 'Сохранить расход'}
         </button>
       </form>
     </main>

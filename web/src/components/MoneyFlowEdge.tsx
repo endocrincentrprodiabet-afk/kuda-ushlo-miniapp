@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatMoney } from '../lib/format';
 import { normalizeFlowWidth } from '../lib/moneyFlow';
+import type { CurrencyCode } from '../types';
 import type { MoneyFlowTone } from './MoneyFlowNode';
 
 type MoneyFlowEdgeProps = {
   id: string;
   path: string;
   amount: number;
+  currency: CurrencyCode;
   parentAmount: number;
   tone: MoneyFlowTone;
   enabled: boolean;
   reducedMotion: boolean;
 };
 
-export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled, reducedMotion }: MoneyFlowEdgeProps) {
+export function MoneyFlowEdge({ id, path, amount, currency, parentAmount, tone, enabled, reducedMotion }: MoneyFlowEdgeProps) {
   const previousAmount = useRef(amount);
   const [isBoosted, setIsBoosted] = useState(false);
   const width = normalizeFlowWidth(amount, parentAmount);
@@ -49,7 +52,7 @@ export function MoneyFlowEdge({ id, path, amount, parentAmount, tone, enabled, r
           </circle>
         </>
       ) : null}
-      <title>{`${id}: ${Math.round(amount)} из ${Math.round(parentAmount)}`}</title>
+      <title>{`${id}: ${formatMoney(amount, currency)} из ${formatMoney(parentAmount, currency)}`}</title>
     </g>
   );
 }

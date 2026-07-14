@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { WeekDetailsSheet } from '../components/WeekDetailsSheet';
+import { getIncomeEntryLabel, getIncomeEntryNote, uiCopy } from '../content/uiCopy';
 import {
   getBudgetUsagePercent,
   getCategoryTotals,
@@ -15,7 +16,7 @@ import {
   sumExpenses,
 } from '../lib/calculations';
 import { formatDate, formatScheduledIncomeDate } from '../lib/date';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatSignedMoney } from '../lib/format';
 import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
 import type { Expense, IncomeEntry, Screen, Settings } from '../types';
 
@@ -26,7 +27,6 @@ type HomeScreenProps = {
   onNavigate: (screen: Screen) => void;
   onOpenMoneyFlow: () => void;
   onSendReport: () => void;
-  reportStatus: string;
 };
 
 function getLocalDayStart(): Date {
@@ -57,18 +57,6 @@ function getProgressWidthPercent(percent: number): number {
   return Math.min(100, Math.max(0, percent));
 }
 
-function formatCompactMoney(amount: number): string {
-  if (amount <= 0) {
-    return '0';
-  }
-
-  if (amount >= 1000) {
-    return `${Math.round(amount / 1000)}к`;
-  }
-
-  return Math.round(amount).toString();
-}
-
 type RecentOperation =
   | {
       id: string;
@@ -89,10 +77,6 @@ type RecentOperation =
       createdAt: string;
     };
 
-function getIncomeOperationTitle(entry: IncomeEntry): string {
-  return entry.type === 'salary' ? 'Зарплата' : 'Начисление';
-}
-
 function sortOperationsByDate(operations: RecentOperation[]): RecentOperation[] {
   return [...operations].sort((a, b) => {
     const dateCompare = b.date.localeCompare(a.date);
@@ -112,7 +96,6 @@ export function HomeScreen({
   onNavigate,
   onOpenMoneyFlow,
   onSendReport,
-  reportStatus,
 }: HomeScreenProps) {
   const [selectedWeekIndex, setSelectedWeekIndex] = useState<number | null>(null);
   const today = useCurrentCalendarDate();
@@ -140,8 +123,8 @@ export function HomeScreen({
       ? `На расходы превышено на ${formatMoney(monthlyStats.overBudget, settings.currency)}`
       : hasMonthlySpendingLimit
         ? `${formatMoney(monthlyStats.monthTotal, settings.currency)} из ${formatMoney(monthlySpendingLimit, settings.currency)}`
-        : 'На расходы сейчас 0 ₽'
-    : 'Настрой доходы, чтобы увидеть план месяца.';
+        : `На расходы сейчас ${formatMoney(0, settings.currency)}`
+    : 'Динамика появится после настройки расходного плана.';
   const largestCategory = getLargestCategory(weekExpenses);
   const categoryTotals = getCategoryTotals(weekExpenses);
   const recentOperations = sortOperationsByDate([
@@ -160,8 +143,8 @@ export function HomeScreen({
       (entry): RecentOperation => ({
         id: entry.id,
         kind: 'income',
-        title: getIncomeOperationTitle(entry),
-        note: entry.note || 'Начисление',
+        title: getIncomeEntryLabel(entry),
+        note: getIncomeEntryNote(entry),
         amount: entry.amount,
         date: entry.date,
         createdAt: entry.createdAt,
@@ -170,21 +153,21 @@ export function HomeScreen({
   ]).slice(0, 4);
   const limitDiff = currentDailyTarget - todayTotal;
   const hasDailyTarget = currentDailyTarget > 0;
-  const dailyBalanceTitle = limitDiff >= 0 ? 'Запас дня' : 'Перерасход';
-  const dailyBalanceCaption = limitDiff >= 0 ? 'Ты в пределах ориентира' : 'Ориентир превышен';
+  const dailyBalanceTitle = limitDiff >= 0 ? 'Осталось на сегодня' : 'Перерасход сегодня';
+  const dailyBalanceCaption = limitDiff >= 0 ? 'В пределах ориентира' : 'Ориентир превышен';
   const heroDailyStatus = hasDailyTarget
     ? limitDiff >= 0
       ? `Осталось на сегодня: ${formatMoney(limitDiff, settings.currency)}`
-      : `Перерасход дня: ${formatMoney(Math.abs(limitDiff), settings.currency)}`
+      : `Выше ориентира на ${formatMoney(Math.abs(limitDiff), settings.currency)}`
     : todayTotal > 0
-      ? 'Расходы есть, но доходы пока не настроены'
-      : 'Настрой доходы, чтобы увидеть план месяца.';
+      ? 'Ориентир на сегодня пока не рассчитан.'
+      : 'Ориентир на сегодня появится после настройки дохода.';
 
   return (
     <main className="screen">
       <header className="top-header">
         <div>
-          <p className="subtitle">Мини-бюджет на каждый день</p>
+          <p className="subtitle">Бюджет на каждый день</p>
           <h1>Куда ушло?</h1>
         </div>
       </header>
@@ -210,7 +193,7 @@ export function HomeScreen({
           <div className="month-budget-head">
             <div>
               <span>Месяц</span>
-              <h2>{isMonthOverBudget ? 'Перерасход месяца' : 'Запас месяца'}</h2>
+              <h2>{isMonthOverBudget ? 'Перерасход месяца' : 'Осталось на месяц'}</h2>
             </div>
             <strong>
               {formatMoney(
@@ -225,18 +208,21 @@ export function HomeScreen({
                 ? `На расходы: ${formatMoney(monthlySpendingLimit, settings.currency)}`
                 : nextScheduledIncomeCaption}
             </p>
-            {normalizedSavingsGoal > 0 ? <p>Отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p> : null}
+            {normalizedSavingsGoal > 0 ? <p>План отложить: {formatMoney(normalizedSavingsGoal, settings.currency)}</p> : null}
           </div>
           {!isMonthOverBudget ? (
             <div className="month-budget-metric">
-              <span>Комфортный темп</span>
+              <span>Темп до конца месяца</span>
               <strong>{formatMoney(monthlyStats.comfortDailyPace, settings.currency)} / день</strong>
             </div>
           ) : null}
         </section>
       ) : (
         <section className="card">
-          <p className="empty-state">Настрой доходы, чтобы увидеть план месяца.</p>
+          <div className="empty-state">
+            <strong>{uiCopy.emptyStates.noIncome.title}</strong>
+            <span>{uiCopy.emptyStates.noIncome.description}</span>
+          </div>
         </section>
       )}
 
@@ -264,7 +250,7 @@ export function HomeScreen({
           <div className="month-dynamics-main">
             <div>
               <strong>{formatProgressPercent(budgetPercent)}</strong>
-              <span>использовано</span>
+              <span>Использовано</span>
             </div>
             <p>{monthlyDynamicsCaption}</p>
           </div>
@@ -282,7 +268,9 @@ export function HomeScreen({
                   onClick={() => setSelectedWeekIndex(week.index)}
                   type="button"
                 >
-                  <span className="month-weekly-bar__amount">{formatCompactMoney(week.total)}</span>
+                  <span className="month-weekly-bar__amount">
+                    {formatMoney(week.total, settings.currency, { notation: 'compact' })}
+                  </span>
                   <div className="month-weekly-bar__track">
                     <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
                   </div>
@@ -314,7 +302,10 @@ export function HomeScreen({
             ))}
           </div>
         ) : (
-          <p className="empty-state">За неделю расходов пока нет</p>
+          <div className="empty-state">
+            <strong>{uiCopy.emptyStates.noWeekExpenses.title}</strong>
+            <span>{uiCopy.emptyStates.noWeekExpenses.description}</span>
+          </div>
         )}
       </section>
 
@@ -322,7 +313,7 @@ export function HomeScreen({
         <div className="section-title">
           <h2>Последние операции</h2>
           <button className="text-button" onClick={() => onNavigate('history')} type="button">
-            Все
+            Все операции
           </button>
         </div>
         {recentOperations.length ? (
@@ -333,8 +324,9 @@ export function HomeScreen({
                   <div className="expense-head">
                     <strong className="expense-category">{operation.title}</strong>
                     <strong className={`expense-amount${operation.kind === 'income' ? ' expense-amount--income' : ''}`}>
-                      {operation.kind === 'income' ? '+' : ''}
-                      {formatMoney(operation.amount, settings.currency)}
+                      {operation.kind === 'income'
+                        ? formatSignedMoney(operation.amount, settings.currency)
+                        : formatMoney(operation.amount, settings.currency)}
                     </strong>
                   </div>
                   <div className="expense-meta">
@@ -346,18 +338,20 @@ export function HomeScreen({
             ))}
           </div>
         ) : (
-          <p className="empty-state">Операций пока нет</p>
+          <div className="empty-state">
+            <strong>{uiCopy.emptyStates.noRecentOperations.title}</strong>
+            <span>{uiCopy.emptyStates.noRecentOperations.description}</span>
+          </div>
         )}
       </section>
 
       <div className="actions">
         <button className="primary-button" onClick={() => onNavigate('add')} type="button">
-          Добавить расход
+          {uiCopy.actions.addExpense}
         </button>
         <button className="secondary-button" onClick={onSendReport} type="button">
           Отправить отчёт
         </button>
-        {reportStatus ? <p className="status-message">{reportStatus}</p> : null}
       </div>
 
       {selectedWeek ? (

@@ -9,6 +9,7 @@ import {
   sumExpenses,
 } from './calculations';
 import { formatMoney } from './format';
+import { uiCopy } from '../content/uiCopy';
 import type { Expense, IncomeEntry, Settings } from '../types';
 
 declare global {
@@ -75,7 +76,7 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings, inc
   const limitLine =
     limitDiff >= 0
       ? `Осталось на сегодня: ${formatMoney(limitDiff, settings.currency)}`
-      : `Перерасход дня: ${formatMoney(Math.abs(limitDiff), settings.currency)}`;
+      : `Выше ориентира на ${formatMoney(Math.abs(limitDiff), settings.currency)}`;
 
   const categories = categoryTotals.length
     ? categoryTotals.map((item) => `${item.category}: ${formatMoney(item.total, settings.currency)}`).join('\n')
@@ -85,7 +86,7 @@ export function buildTelegramReport(expenses: Expense[], settings: Settings, inc
     'Отчёт Куда ушло?',
     `Сегодня: ${formatMoney(todayTotal, settings.currency)}`,
     `За неделю: ${formatMoney(weekTotal, settings.currency)}`,
-    `Дневной ориентир: ${formatMoney(dailyTarget, settings.currency)} / день`,
+    `Ориентир на сегодня: ${formatMoney(dailyTarget, settings.currency)} / день`,
     limitLine,
     '',
     'Категории за неделю:',
@@ -153,7 +154,7 @@ export function sendTelegramReport(
 
     return {
       report,
-      statusMessage: 'Отчёт сформирован. В Telegram он будет отправлен боту.',
+      statusMessage: uiCopy.toasts.reportCreated,
       sentToTelegram: false,
     };
   }
@@ -163,7 +164,7 @@ export function sendTelegramReport(
 
   return {
     report,
-    statusMessage: 'Отчёт отправлен в Telegram.',
+    statusMessage: uiCopy.toasts.reportCreated,
     sentToTelegram: true,
   };
 }

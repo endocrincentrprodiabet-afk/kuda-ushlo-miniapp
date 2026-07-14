@@ -42,7 +42,7 @@ export function isWithinCurrentWeek(value: string): boolean {
 
 export function formatDate(value: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
+    day: 'numeric',
     month: 'long',
   }).format(new Date(`${value}T00:00:00`));
 }

@@ -3,10 +3,11 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import type { MoneyFlowMetrics } from '../types/moneyFlow';
 import { MoneyFlowEdge } from './MoneyFlowEdge';
 import { MoneyFlowNode } from './MoneyFlowNode';
+import type { CurrencyCode } from '../types';
 
 type MoneyFlowDiagramProps = {
   metrics: MoneyFlowMetrics;
-  currency: string;
+  currency: CurrencyCode;
 };
 
 const desktopLayout = {
@@ -80,7 +81,7 @@ export function MoneyFlowDiagram({ metrics, currency }: MoneyFlowDiagramProps) {
   const container = useRef<HTMLDivElement>(null);
   const isWide = useWideLayout(container);
   const reducedMotion = usePrefersReducedMotion();
-  const resultLabel = metrics.isOverBudget ? 'Перерасход' : 'Остаток';
+  const resultLabel = metrics.isOverBudget ? 'Перерасход' : 'Осталось';
   const resultAmount = metrics.isOverBudget ? metrics.deficit : metrics.remainingSpending;
   const resultTone = metrics.isOverBudget ? 'deficit' : 'remaining';
   const resultShare = metrics.isOverBudget
@@ -113,6 +114,7 @@ export function MoneyFlowDiagram({ metrics, currency }: MoneyFlowDiagramProps) {
       >
         <MoneyFlowEdge
           amount={metrics.savingsGoal}
+          currency={currency}
           enabled={metrics.hasBudget}
           id="Поток в план накоплений"
           parentAmount={metrics.workingBudget}
@@ -122,6 +124,7 @@ export function MoneyFlowDiagram({ metrics, currency }: MoneyFlowDiagramProps) {
         />
         <MoneyFlowEdge
           amount={metrics.spendingLimit}
+          currency={currency}
           enabled={metrics.hasBudget}
           id="Поток на расходы"
           parentAmount={metrics.workingBudget}
@@ -131,6 +134,7 @@ export function MoneyFlowDiagram({ metrics, currency }: MoneyFlowDiagramProps) {
         />
         <MoneyFlowEdge
           amount={metrics.monthSpent}
+          currency={currency}
           enabled={metrics.hasBudget}
           id="Потрачено"
           parentAmount={lowerFlowParent}
@@ -140,6 +144,7 @@ export function MoneyFlowDiagram({ metrics, currency }: MoneyFlowDiagramProps) {
         />
         <MoneyFlowEdge
           amount={resultAmount}
+          currency={currency}
           enabled={metrics.hasBudget}
           id={resultLabel}
           parentAmount={lowerFlowParent}

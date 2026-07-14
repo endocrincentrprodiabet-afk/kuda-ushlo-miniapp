@@ -1,7 +1,7 @@
 import { toDateInputValue } from './date';
 import type { IncomeEntry, Settings } from '../types';
 
-const AUTO_INCOME_NOTE = 'Автоначисление';
+const AUTO_INCOME_NOTE = 'Доход по графику';
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function isDateInputValue(value: string): boolean {

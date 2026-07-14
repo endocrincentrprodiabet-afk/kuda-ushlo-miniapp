@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatedMoney } from './AnimatedMoney';
+import { formatMoney } from '../lib/format';
+import type { CurrencyCode } from '../types';
 
 export type MoneyFlowTone = 'source' | 'savings' | 'spending' | 'spent' | 'remaining' | 'deficit';
 
@@ -10,7 +12,7 @@ type MoneyFlowNodeProps = {
   height: number;
   label: string;
   amount: number;
-  currency: string;
+  currency: CurrencyCode;
   tone: MoneyFlowTone;
   percentage?: number;
   muted?: boolean;
@@ -46,12 +48,12 @@ export function MoneyFlowNode({
     return () => window.clearTimeout(timeoutId);
   }, [amount, reducedMotion]);
 
-  const percentLabel = percentage === undefined ? '' : `, ${Math.round(percentage * 100)} процентов`;
+  const percentLabel = percentage === undefined ? '' : `, ${Math.round(percentage * 100)}%`;
 
   return (
     <foreignObject height={height} width={width} x={x} y={y}>
       <div
-        aria-label={`${label}: ${Math.round(amount)} ${currency}${percentLabel}`}
+        aria-label={`${label}: ${formatMoney(amount, currency)}${percentLabel}`}
         className={`money-flow-node money-flow-node--${tone}${muted ? ' money-flow-node--muted' : ''}${isPulsing ? ' money-flow-node--pulse' : ''}`}
         role="group"
       >

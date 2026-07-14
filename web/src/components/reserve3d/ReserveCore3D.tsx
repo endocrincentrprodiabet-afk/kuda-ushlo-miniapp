@@ -186,7 +186,7 @@ export default function ReserveCore3D(props: ReserveCoreData) {
             {!visualState.goalReached ? <span>Осталось: {formatMoney(remainingToGoal, currency)}</span> : null}
           </div>
         ) : (
-          <p className="reserve-core__empty">Добавь цель, чтобы видеть прогресс</p>
+          <p className="reserve-core__empty">Добавь цель, чтобы видеть прогресс.</p>
         )}
       </div>
     </section>

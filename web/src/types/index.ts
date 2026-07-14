@@ -18,6 +18,27 @@ export type Expense = {
   createdAt: string;
 };
 
+export type CurrencyCode =
+  | 'RUB'
+  | 'USD'
+  | 'EUR'
+  | 'GBP'
+  | 'TRY'
+  | 'CNY'
+  | 'JPY'
+  | 'KZT'
+  | 'AED'
+  | 'GEL';
+
+export type CurrencyConfig = {
+  code: CurrencyCode;
+  label: string;
+  shortLabel: string;
+  locale: string;
+  symbol: string;
+  fractionDigits: number;
+};
+
 export type Settings = {
   dailyLimit: number;
   monthlyBudget: number;
@@ -27,7 +48,7 @@ export type Settings = {
   nextIncomeDate: string;
   secondIncomeDate: string;
   regularIncomeAmount: number;
-  currency: 'RUB';
+  currency: CurrencyCode;
 };
 
 export type IncomeEntry = {

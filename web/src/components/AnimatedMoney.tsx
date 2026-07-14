@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '../lib/format';
+import type { CurrencyCode } from '../types';
 
 type AnimatedMoneyProps = {
   amount: number;
-  currency: string;
+  currency: CurrencyCode;
   className?: string;
   debounceMs?: number;
   durationMs?: number;

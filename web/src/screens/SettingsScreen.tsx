@@ -1,6 +1,7 @@
 import { CSSProperties, FormEvent, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
+import { getSavingsWarningCopy, uiCopy } from '../content/uiCopy';
 import {
   getMonthlySpendingLimitFromWorkingBudget,
   getPlannedDailyTargetFromWorkingBudget,
@@ -8,12 +9,14 @@ import {
 } from '../lib/calculations';
 import { formatScheduledIncomeDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
+import { CURRENCIES } from '../lib/currency';
 import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
-import type { IncomeEntry, Settings } from '../types';
+import type { CurrencyCode, IncomeEntry, Settings } from '../types';
 
 type SettingsScreenProps = {
   settings: Settings;
   incomeEntries: IncomeEntry[];
+  onChangeCurrency: (currency: CurrencyCode) => void;
   onSaveSettings: (settings: Settings) => void;
   onOpenAddIncome: () => void;
   onOpenReserveTopUp: () => void;
@@ -40,32 +43,10 @@ function getDayAfter(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 }
 
-function getSavingsWarningContent(savingsGoal: number, workingBudget: number): { title: string; text: string } {
-  const savingsPercent = workingBudget > 0 ? (savingsGoal / workingBudget) * 100 : 0;
-
-  if (savingsPercent >= 95) {
-    return {
-      title: 'Почти все деньги уходят в сейф',
-      text: 'На расходы почти ничего не останется. Если это не случайность, можно сохранить такой план.',
-    };
-  }
-
-  if (savingsPercent >= 75) {
-    return {
-      title: 'Большая часть денег отложена',
-      text: 'Проверь, комфортно ли будет жить с таким лимитом на расходы.',
-    };
-  }
-
-  return {
-    title: 'Проверь план',
-    text: 'На расходы остается небольшая часть денег в работе. Проверь, что план реалистичен для месяца.',
-  };
-}
-
 export function SettingsScreen({
   settings,
   incomeEntries,
+  onChangeCurrency,
   onSaveSettings,
   onOpenAddIncome,
   onOpenReserveTopUp,
@@ -77,12 +58,11 @@ export function SettingsScreen({
   const [secondIncomeDate, setSecondIncomeDate] = useState(settings.secondIncomeDate);
   const [regularIncomeAmount, setRegularIncomeAmount] = useState(String(settings.regularIncomeAmount || ''));
   const [savingsGoal, setSavingsGoal] = useState(settings.savingsGoal);
-  const [saved, setSaved] = useState(false);
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [clearConfirmationText, setClearConfirmationText] = useState('');
   const [savingsConfirmationOpen, setSavingsConfirmationOpen] = useState(false);
   const [pendingSettings, setPendingSettings] = useState<Settings | null>(null);
-  const [dataCleared, setDataCleared] = useState(false);
+  const [pendingCurrency, setPendingCurrency] = useState<CurrencyCode | null>(null);
   const canClearData = clearConfirmationText.trim() === 'ОЧИСТИТЬ';
 
   const parsedAvailableNow = parseMoneyInput(availableNow);
@@ -97,7 +77,7 @@ export function SettingsScreen({
     secondIncomeDate,
     regularIncomeAmount: parsedRegularIncomeAmount,
     savingsGoal,
-    currency: 'RUB',
+    currency: settings.currency,
   };
   const workingBudget = getWorkingBudget(previewSettings, incomeEntries);
   const clampedSavingsGoal = snapSavingsGoal(savingsGoal, workingBudget);
@@ -109,19 +89,13 @@ export function SettingsScreen({
   const secondIncomeDatePreview = nextIncomeDatePreview
     ? getNextScheduledIncomeDate(previewSettings, [], getDayAfter(nextIncomeDatePreview))
     : null;
-  const nextIncomeAfter = getNextScheduledIncomeDate(
-    previewSettings,
-    [],
-    getDayAfter(
-      incomeFrequency === 'biweekly' && secondIncomeDatePreview
-        ? secondIncomeDatePreview
-        : nextIncomeDatePreview ?? today,
-    ),
-  );
   const savingsWarningContent = pendingSettings
-    ? getSavingsWarningContent(pendingSettings.savingsGoal, getWorkingBudget(pendingSettings, incomeEntries))
+    ? getSavingsWarningCopy(
+        getWorkingBudget(pendingSettings, incomeEntries) > 0
+          ? (pendingSettings.savingsGoal / getWorkingBudget(pendingSettings, incomeEntries)) * 100
+          : 0,
+      )
     : null;
-  const shouldShowIncomeHint = parsedAvailableNow === 0 && incomeEntries.length === 0;
 
   useEffect(() => {
     setAvailableNow(String(settings.availableNow || ''));
@@ -144,7 +118,7 @@ export function SettingsScreen({
   }, [workingBudget]);
 
   useEffect(() => {
-    if (!savingsConfirmationOpen) {
+    if (!savingsConfirmationOpen && !pendingCurrency) {
       return;
     }
 
@@ -154,14 +128,12 @@ export function SettingsScreen({
     return () => {
       document.body.style.overflow = previousBodyOverflow;
     };
-  }, [savingsConfirmationOpen]);
+  }, [pendingCurrency, savingsConfirmationOpen]);
 
   function commitSettings(nextSettings: Settings) {
     onSaveSettings(nextSettings);
     setAvailableNow(String(nextSettings.availableNow || ''));
     setSavingsGoal(nextSettings.savingsGoal);
-    setSaved(true);
-    setDataCleared(false);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -200,7 +172,6 @@ export function SettingsScreen({
 
   function handleOpenClearConfirmation() {
     setClearConfirmationOpen(true);
-    setDataCleared(false);
   }
 
   function handleCancelClearData() {
@@ -216,8 +187,25 @@ export function SettingsScreen({
     onClearData();
     setClearConfirmationOpen(false);
     setClearConfirmationText('');
-    setSaved(false);
-    setDataCleared(true);
+  }
+
+  function handleRequestCurrencyChange(currency: CurrencyCode) {
+    if (currency !== settings.currency) {
+      setPendingCurrency(currency);
+    }
+  }
+
+  function handleCancelCurrencyChange() {
+    setPendingCurrency(null);
+  }
+
+  function handleConfirmCurrencyChange() {
+    if (!pendingCurrency) {
+      return;
+    }
+
+    onChangeCurrency(pendingCurrency);
+    setPendingCurrency(null);
   }
 
   const savingsConfirmationModal =
@@ -267,35 +255,32 @@ export function SettingsScreen({
           <section className="settings-plan">
             <div className="settings-plan__head">
               <h2>Доходы и план</h2>
-              <p>Начни с суммы, которая есть сейчас. Так приложение точнее посчитает расходный коридор.</p>
+              <p>Начни с суммы, которая доступна сейчас — так расчёты будут точнее.</p>
             </div>
-
-            {shouldShowIncomeHint ? (
-              <p className="settings-income-hint">Внеси сумму, которая есть сейчас, чтобы приложение точнее рассчитало план.</p>
-            ) : null}
 
             <label className="settings-plan__budget">
               <span>Доступно сейчас</span>
-              <input
-                inputMode="decimal"
-                min="0"
-                onChange={(event) => {
-                  setAvailableNow(event.target.value);
-                  setSaved(false);
-                }}
-                type="number"
-                value={availableNow}
-              />
+              <div className="money-input">
+                <input
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => {
+                    setAvailableNow(event.target.value);
+                  }}
+                  type="number"
+                  value={availableNow}
+                />
+                <span className="money-input__currency">{settings.currency}</span>
+              </div>
             </label>
 
             <fieldset>
-              <legend>Доход приходит</legend>
+              <legend>График дохода</legend>
               <div className="segmented segmented--two">
                 <button
                   className={incomeFrequency === 'monthly' ? 'active' : ''}
                   onClick={() => {
                     setIncomeFrequency('monthly');
-                    setSaved(false);
                   }}
                   type="button"
                 >
@@ -305,7 +290,6 @@ export function SettingsScreen({
                   className={incomeFrequency === 'biweekly' ? 'active' : ''}
                   onClick={() => {
                     setIncomeFrequency('biweekly');
-                    setSaved(false);
                   }}
                   type="button"
                 >
@@ -315,11 +299,10 @@ export function SettingsScreen({
             </fieldset>
 
             <label>
-              <span>{incomeFrequency === 'biweekly' ? 'Первая ближайшая выплата' : 'Ближайшая выплата'}</span>
+              <span>Первая выплата</span>
               <input
                 onChange={(event) => {
                   setNextIncomeDate(event.target.value);
-                  setSaved(false);
                 }}
                 type="date"
                 value={nextIncomeDate}
@@ -328,11 +311,10 @@ export function SettingsScreen({
 
             {incomeFrequency === 'biweekly' ? (
               <label>
-                <span>Вторая ближайшая выплата</span>
+                <span>Вторая выплата</span>
                 <input
                   onChange={(event) => {
                     setSecondIncomeDate(event.target.value);
-                    setSaved(false);
                   }}
                   type="date"
                   value={secondIncomeDate}
@@ -342,40 +324,40 @@ export function SettingsScreen({
 
             <label>
               <span>Обычная сумма выплаты</span>
-              <input
-                inputMode="decimal"
-                min="0"
-                onChange={(event) => {
-                  setRegularIncomeAmount(event.target.value);
-                  setSaved(false);
-                }}
-                type="number"
-                value={regularIncomeAmount}
-              />
+              <div className="money-input">
+                <input
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => {
+                    setRegularIncomeAmount(event.target.value);
+                  }}
+                  type="number"
+                  value={regularIncomeAmount}
+                />
+                <span className="money-input__currency">{settings.currency}</span>
+              </div>
             </label>
 
             <div className="income-schedule-note">
-              <span>
-                Ближайшая выплата:{' '}
-                {nextIncomeDatePreview ? formatScheduledIncomeDate(nextIncomeDatePreview, today) : 'не настроена'}
-              </span>
-              {incomeFrequency === 'biweekly' ? (
-                <span>
-                  Вторая ближайшая выплата:{' '}
-                  {secondIncomeDatePreview ? formatScheduledIncomeDate(secondIncomeDatePreview, today) : 'не настроена'}
-                </span>
-              ) : null}
-              <span>
-                Следующая после неё: {nextIncomeAfter ? formatScheduledIncomeDate(nextIncomeAfter, today) : 'не настроена'}
-              </span>
-              <p>Начисления создаются автоматически, когда дата выплаты наступила.</p>
+              {nextIncomeDatePreview ? (
+                <>
+                  <span>Ближайшая выплата: {formatScheduledIncomeDate(nextIncomeDatePreview, today)}</span>
+                  <span>
+                    Следующая выплата:{' '}
+                    {secondIncomeDatePreview ? formatScheduledIncomeDate(secondIncomeDatePreview, today) : 'дата не указана'}
+                  </span>
+                  <p>Доход добавится автоматически в дату выплаты.</p>
+                </>
+              ) : (
+                <p>Настрой даты выплат.</p>
+              )}
             </div>
 
             <section className="income-entry-card">
-              <h3>Начисления</h3>
-              <p className="muted">Обычные начисления добавляются и редактируются как операции.</p>
+              <h3>Доходы</h3>
+              <p className="muted">Доходы можно добавлять и изменять как другие операции.</p>
               <button className="secondary-button" onClick={onOpenAddIncome} type="button">
-                Добавить начисление
+                {uiCopy.actions.addIncome}
               </button>
             </section>
 
@@ -397,19 +379,16 @@ export function SettingsScreen({
                   currency={settings.currency}
                   debounceMs={180}
                 />
-                <p>Сумма, которую хочешь не тратить</p>
-                <p className="savings-panel__helper">
-                  План не пополняет сейф автоматически. Фактические деньги добавляются через «Пополнить сейф».
-                </p>
+                <p className="savings-panel__helper">План не пополняет сейф автоматически.</p>
               </div>
 
               <button
-                aria-label="Пополнить сейф"
+                aria-label={uiCopy.actions.topUpReserve}
                 className="secondary-button savings-panel__top-up"
                 onClick={onOpenReserveTopUp}
                 type="button"
               >
-                Пополнить сейф
+                {uiCopy.actions.topUpReserve}
               </button>
 
               <div className="savings-panel__control">
@@ -422,7 +401,6 @@ export function SettingsScreen({
                     min="0"
                     onChange={(event) => {
                       setSavingsGoal(snapSavingsGoal(Number(event.target.value), workingBudget));
-                      setSaved(false);
                     }}
                     step={SAVINGS_STEP}
                     style={{ '--savings-progress': `${savingsPercent}%` } as CSSProperties}
@@ -447,20 +425,40 @@ export function SettingsScreen({
                   </strong>
                 </div>
                 <div className="monthly-spending-limit monthly-spending-limit--secondary">
-                  <span>Плановый ориентир</span>
+                  <span>План на день</span>
                   <strong>{formatMoney(plannedDailyTarget, settings.currency)} / день</strong>
                 </div>
-                <p className="settings-plan-note">На расходы и дневной ориентир считаются автоматически.</p>
+                <p className="settings-plan-note">На расходы и план на день рассчитываются автоматически.</p>
               </div>
             </div>
           </section>
 
-          <div className="setting-row">
-            <span>Валюта</span>
-            <strong>{settings.currency}</strong>
-          </div>
+          <section className="currency-settings" aria-labelledby="currency-settings-title">
+            <div className="currency-settings__head">
+              <h2 id="currency-settings-title">{uiCopy.currency.title}</h2>
+              <p>{uiCopy.currency.helper}</p>
+            </div>
+            <div className="currency-selector" role="list">
+              {CURRENCIES.map((currency) => {
+                const isSelected = currency.code === settings.currency;
 
-          {saved ? <p className="success-text">Настройки сохранены</p> : null}
+                return (
+                  <button
+                    aria-pressed={isSelected}
+                    className={`currency-option${isSelected ? ' currency-option--selected' : ''}`}
+                    key={currency.code}
+                    onClick={() => handleRequestCurrencyChange(currency.code)}
+                    role="listitem"
+                    type="button"
+                  >
+                    <span className="currency-option__symbol" aria-hidden="true">{currency.symbol}</span>
+                    <span className="currency-option__label">{currency.label}</span>
+                    <span className="currency-option__code">{currency.code}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
           <button className="primary-button" type="submit">
             Сохранить настройки
@@ -469,8 +467,7 @@ export function SettingsScreen({
 
         <section className="card">
           <h2>Данные</h2>
-          <p className="muted">Данные хранятся локально на этом устройстве.</p>
-          {dataCleared ? <p className="success-text settings-status">Данные очищены.</p> : null}
+          <p className="muted">Все данные хранятся локально на этом устройстве.</p>
           <button className="secondary-button danger" onClick={handleOpenClearConfirmation} type="button">
             Очистить все данные
           </button>
@@ -478,6 +475,34 @@ export function SettingsScreen({
       </main>
 
       {savingsConfirmationModal}
+
+      {pendingCurrency
+        ? createPortal(
+            <div className="modal-backdrop currency-confirmation-backdrop" role="presentation">
+              <section
+                className="confirm-modal confirm-modal--informational"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="currency-confirmation-title"
+              >
+                <div className="confirm-modal__head">
+                  <p className="subtitle">{uiCopy.currency.title}</p>
+                  <h2 id="currency-confirmation-title">{uiCopy.currency.confirmationTitle}</h2>
+                </div>
+                <p className="confirm-modal__warning">{uiCopy.currency.confirmationText}</p>
+                <div className="confirm-modal__actions">
+                  <button className="secondary-button" onClick={handleCancelCurrencyChange} type="button">
+                    {uiCopy.actions.cancel}
+                  </button>
+                  <button className="primary-button" onClick={handleConfirmCurrencyChange} type="button">
+                    {uiCopy.currency.confirmationAction}
+                  </button>
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {clearConfirmationOpen ? (
         <div className="modal-backdrop" role="presentation">
@@ -487,10 +512,10 @@ export function SettingsScreen({
               <h2 id="clear-data-title">Очистить все данные?</h2>
             </div>
 
-            <p className="confirm-modal__warning">Будут удалены все расходы, поступления, накопления, цели и настройки. Это действие нельзя отменить.</p>
+            <p className="confirm-modal__warning">Удалятся расходы, доходы, цели, пополнения и настройки. Это действие нельзя отменить.</p>
 
             <label className="confirm-modal__field">
-              <span>Чтобы подтвердить, введите: ОЧИСТИТЬ</span>
+              <span>Чтобы подтвердить, введи: ОЧИСТИТЬ</span>
               <input autoFocus onChange={(event) => setClearConfirmationText(event.target.value)} value={clearConfirmationText} />
             </label>
 

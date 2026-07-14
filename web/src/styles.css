@@ -1668,9 +1668,21 @@ h2 {
 }
 
 .empty-state {
+  display: grid;
+  gap: 3px;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.empty-state span {
+  color: var(--muted);
 }
 
 label,
@@ -1723,6 +1735,36 @@ input::placeholder {
   font-size: 30px;
   font-weight: 700;
   letter-spacing: 0;
+}
+
+.money-input {
+  position: relative;
+  min-width: 0;
+}
+
+.money-input input {
+  padding-right: 68px;
+}
+
+.money-input__currency {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  max-width: 52px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.money-input--large .money-input__currency {
+  font-size: 13px;
 }
 
 .form-card fieldset {
@@ -1834,6 +1876,87 @@ input::placeholder {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
+}
+
+.currency-settings {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 15px;
+  padding: 16px;
+  background: var(--surface-soft);
+}
+
+.currency-settings__head {
+  display: grid;
+  gap: 5px;
+}
+
+.currency-settings__head h2,
+.currency-settings__head p {
+  margin: 0;
+}
+
+.currency-settings__head p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.currency-selector {
+  display: grid;
+  max-height: min(370px, 48dvh);
+  gap: 7px;
+  overflow-y: auto;
+  padding-right: 3px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.currency-option {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 7px 11px;
+  background: rgba(21, 26, 32, 0.72);
+  color: var(--text);
+  text-align: left;
+}
+
+.currency-option--selected {
+  border-color: var(--accent-line);
+  background: var(--accent-softer);
+}
+
+.currency-option__symbol {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.currency-option--selected .currency-option__symbol,
+.currency-option--selected .currency-option__code {
+  color: var(--accent);
+}
+
+.currency-option__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.currency-option__code {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
 }
 
 .settings-plan__budget {
@@ -2275,6 +2398,22 @@ input::placeholder {
 }
 
 .confirm-modal--savings .confirm-modal__warning {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.currency-confirmation-backdrop {
+  z-index: 1000;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.confirm-modal--informational {
+  border-color: var(--accent-line);
+}
+
+.confirm-modal--informational .confirm-modal__warning {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
@@ -3009,7 +3148,7 @@ input::placeholder {
 
 .reserve-summary-card {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   padding: 16px 10px;
 }

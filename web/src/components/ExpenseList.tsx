@@ -1,10 +1,10 @@
 import { formatDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
-import type { Expense } from '../types';
+import type { CurrencyCode, Expense } from '../types';
 
 type ExpenseListProps = {
   expenses: Expense[];
-  currency: string;
+  currency: CurrencyCode;
   emptyText: string;
   showDate?: boolean;
   onDelete?: (id: string) => void;
@@ -34,7 +34,7 @@ export function ExpenseList({ expenses, currency, emptyText, showDate = true, on
             <div className="expense-actions">
               {onEdit ? (
                 <button className="expense-action-button" onClick={() => onEdit(expense)} type="button">
-                  Редактировать
+                  Изменить
                 </button>
               ) : null}
               {onDelete ? (

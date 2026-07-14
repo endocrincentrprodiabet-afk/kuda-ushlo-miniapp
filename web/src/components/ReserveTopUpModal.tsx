@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { uiCopy } from '../content/uiCopy';
 import { toDateInputValue } from '../lib/date';
-import type { ReserveTopUp } from '../types';
+import type { CurrencyCode, ReserveTopUp } from '../types';
 
 export type ReserveTopUpValues = Pick<ReserveTopUp, 'amount' | 'date' | 'note'>;
 
 type ReserveTopUpModalProps = {
+  currency: CurrencyCode;
   currentTopUp: ReserveTopUp | null;
   onClose: () => void;
   onSave: (values: ReserveTopUpValues) => void;
@@ -22,7 +24,7 @@ function isValidDateValue(value: string): boolean {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
-export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopUpModalProps) {
+export function ReserveTopUpModal({ currency, currentTopUp, onClose, onSave }: ReserveTopUpModalProps) {
   const [amount, setAmount] = useState(String(currentTopUp?.amount ?? ''));
   const [date, setDate] = useState(currentTopUp?.date ?? toDateInputValue(new Date()));
   const [note, setNote] = useState(currentTopUp?.note ?? '');
@@ -55,12 +57,12 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
       : 0;
 
     if (!amount.trim() || !Number.isFinite(parsedAmount) || normalizedAmount <= 0) {
-      setError('Укажи сумму больше нуля.');
+      setError(uiCopy.errors.positiveAmount);
       return;
     }
 
     if (!isValidDateValue(date)) {
-      setError('Укажи корректную дату.');
+      setError(uiCopy.errors.invalidDate);
       return;
     }
 
@@ -83,7 +85,7 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
         aria-describedby={error ? 'reserve-top-up-modal-error' : undefined}
       >
         <div className="confirm-modal__head">
-          <p className="subtitle">Накопления</p>
+          <p className="subtitle">Сейф</p>
           <h2 id="reserve-top-up-modal-title">
             {isEditing ? 'Изменить пополнение' : 'Пополнить сейф'}
           </h2>
@@ -91,18 +93,21 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
 
         <label className="confirm-modal__field reserve-modal__field">
           <span>Сумма</span>
-          <input
-            autoFocus
-            inputMode="decimal"
-            min="1"
-            onChange={(event) => {
-              setAmount(event.target.value);
-              setError('');
-            }}
-            step="1"
-            type="number"
-            value={amount}
-          />
+          <div className="money-input">
+            <input
+              autoFocus
+              inputMode="decimal"
+              min="1"
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError('');
+              }}
+              step="1"
+              type="number"
+              value={amount}
+            />
+            <span className="money-input__currency">{currency}</span>
+          </div>
         </label>
 
         <label className="confirm-modal__field reserve-modal__field">
@@ -118,7 +123,7 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
         </label>
 
         <label className="confirm-modal__field reserve-modal__field">
-          <span>Комментарий — необязательный</span>
+          <span>Комментарий</span>
           <textarea
             maxLength={180}
             onChange={(event) => {
@@ -138,14 +143,14 @@ export function ReserveTopUpModal({ currentTopUp, onClose, onSave }: ReserveTopU
 
         <div className="confirm-modal__actions">
           <button className="secondary-button" onClick={onClose} type="button">
-            Отмена
+            {uiCopy.actions.cancel}
           </button>
           <button
-            aria-label={isEditing ? 'Сохранить изменения пополнения' : 'Пополнить сейф'}
+            aria-label={isEditing ? 'Сохранить изменения пополнения' : uiCopy.actions.topUpReserve}
             className="primary-button"
             type="submit"
           >
-            {isEditing ? 'Сохранить изменения' : 'Пополнить сейф'}
+            {isEditing ? 'Сохранить изменения' : uiCopy.actions.topUpReserve}
           </button>
         </div>
       </form>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getDeleteOperationCopy, uiCopy } from '../../content/uiCopy';
 import { formatMoney } from '../../lib/format';
 import type { ReserveGoal, Settings } from '../../types';
 
@@ -11,6 +12,8 @@ type ReserveGoalDeleteModalProps = {
 };
 
 export function ReserveGoalDeleteModal({ currency, goal, onCancel, onConfirm }: ReserveGoalDeleteModalProps) {
+  const copy = getDeleteOperationCopy('goal', { amount: formatMoney(goal.allocatedAmount, currency) });
+
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -40,17 +43,15 @@ export function ReserveGoalDeleteModal({ currency, goal, onCancel, onConfirm }: 
       >
         <div className="confirm-modal__head">
           <p className="subtitle">Подтверждение</p>
-          <h2 id="delete-reserve-goal-title">Удалить цель?</h2>
+          <h2 id="delete-reserve-goal-title">{copy.title}</h2>
         </div>
-        <p className="reserve-modal__text">
-          Распределённые на неё {formatMoney(goal.allocatedAmount, currency)} вернутся в свободную сумму.
-        </p>
+        <p className="reserve-modal__text">{copy.body}</p>
         <div className="confirm-modal__actions">
           <button className="secondary-button" onClick={onCancel} type="button">
-            Отмена
+            {uiCopy.actions.cancel}
           </button>
           <button className="danger-button reserve-goal-delete-button" onClick={onConfirm} type="button">
-            Удалить цель
+            {copy.action}
           </button>
         </div>
       </section>

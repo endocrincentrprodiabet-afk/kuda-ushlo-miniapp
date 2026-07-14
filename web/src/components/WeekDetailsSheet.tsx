@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getMonthForecastCopy, getWeekInsightCopy } from '../content/uiCopy';
 import type { MonthWeeklyBudgetStat } from '../lib/calculations';
 import { formatMoney } from '../lib/format';
 import type { Settings } from '../types';
@@ -42,44 +43,6 @@ function getMonthForecast(monthTotal: number, monthlySpendingLimit: number, date
   };
 }
 
-function getWeekInsight(
-  week: MonthWeeklyBudgetStat,
-  projectedMonthTotal: number,
-  monthlySpendingLimit: number,
-  currency: Settings['currency'],
-): string {
-  const topCategory = week.categoryTotals[0]?.category;
-  const parts: string[] = [];
-
-  if (week.total === 0) {
-    parts.push('На этой неделе пока нет расходов.');
-  } else if (week.target <= 0) {
-    parts.push('Ориентир недели не задан.');
-
-    if (topCategory) {
-      parts.push(`Больше всего ушло на: ${topCategory}.`);
-    }
-  } else if (week.target > 0 && week.total > week.target) {
-    parts.push(`Эта неделя выше ориентира на ${formatMoney(week.total - week.target, currency)}.`);
-
-    if (topCategory) {
-      parts.push(`Основной вклад: ${topCategory}.`);
-    }
-  } else {
-    parts.push('Неделя в пределах ориентира.');
-
-    if (topCategory) {
-      parts.push(`Больше всего ушло на: ${topCategory}.`);
-    }
-  }
-
-  if (monthlySpendingLimit > 0 && projectedMonthTotal > monthlySpendingLimit) {
-    parts.push('Прогноз месяца тоже выше плана.');
-  }
-
-  return parts.join(' ');
-}
-
 export function WeekDetailsSheet({
   week,
   monthlySpendingLimit,
@@ -89,7 +52,12 @@ export function WeekDetailsSheet({
 }: WeekDetailsSheetProps) {
   const forecast = getMonthForecast(monthTotal, monthlySpendingLimit);
   const weekBalance = week.target > 0 ? Math.abs(week.target - week.total) : 0;
-  const insight = getWeekInsight(week, forecast.projectedMonthTotal, monthlySpendingLimit, settings.currency);
+  const insight = getWeekInsightCopy({
+    total: week.total,
+    target: week.target,
+    difference: formatMoney(Math.max(0, week.total - week.target), settings.currency),
+    topCategory: week.categoryTotals[0]?.category,
+  });
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -132,13 +100,13 @@ export function WeekDetailsSheet({
         <div className="weekly-summary">
           <div>
             <strong>{formatMoney(week.total, settings.currency)}</strong>
-            <span>потрачено за неделю</span>
+            <span>Потрачено за неделю</span>
           </div>
           {week.target > 0 ? (
             <>
               <p>Ориентир недели: {formatMoney(week.target, settings.currency)}</p>
               <p className={week.isOverTarget ? 'weekly-summary__over' : 'weekly-summary__safe'}>
-                {week.isOverTarget ? 'Выше ориентира' : 'Запас недели'}: {formatMoney(weekBalance, settings.currency)}
+                {week.isOverTarget ? 'Выше ориентира' : 'Осталось в ориентире'}: {formatMoney(weekBalance, settings.currency)}
               </p>
             </>
           ) : (
@@ -163,7 +131,7 @@ export function WeekDetailsSheet({
               ))}
             </div>
           ) : (
-            <p className="empty-state">На этой неделе пока нет расходов</p>
+            <p className="empty-state">На этой неделе расходов пока нет.</p>
           )}
         </div>
 
@@ -176,12 +144,10 @@ export function WeekDetailsSheet({
                 {formatMoney(monthlySpendingLimit, settings.currency)}
               </p>
               <span>
-                {forecast.isOverPlan
-                  ? `По текущему темпу месяц может выйти выше плана на ${formatMoney(
-                      forecast.overPlanAmount,
-                      settings.currency,
-                    )}.`
-                  : 'По текущему темпу месяц остаётся в плане.'}
+                {getMonthForecastCopy({
+                  isOverPlan: forecast.isOverPlan,
+                  overPlanAmount: formatMoney(forecast.overPlanAmount, settings.currency),
+                })}
               </span>
             </>
           ) : (
