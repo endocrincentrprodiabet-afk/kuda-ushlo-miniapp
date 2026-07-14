@@ -218,7 +218,7 @@ function AnimatedGoalObject({
       sweep.current.visible = completion > 0.001 && !reducedMotion;
       sweep.current.rotation.z += safeDelta * 1.45;
       sweep.current.scale.setScalar(0.82 + (1 - completion) * 0.55);
-      sweepMaterial.current.opacity = successEnvelope * 0.18;
+      sweepMaterial.current.opacity = successEnvelope * (quality === 'low' ? 0.1 : 0.18);
     }
 
     if (phase !== 'idle' && transitionProgress.current < 1) {
@@ -252,19 +252,17 @@ function AnimatedGoalObject({
           />
         </group>
       </group>
-      {quality !== 'low' ? (
-        <mesh ref={sweep} rotation={[Math.PI / 2.25, 0.08, 0]} visible={false}>
-          <torusGeometry args={[1.72, 0.018, 5, quality === 'high' ? 64 : 40]} />
-          <meshBasicMaterial
-            ref={sweepMaterial}
-            blending={THREE.AdditiveBlending}
-            color={GOAL_VISUAL_PALETTE.accentComplete}
-            depthWrite={false}
-            opacity={0}
-            transparent
-          />
-        </mesh>
-      ) : null}
+      <mesh ref={sweep} rotation={[Math.PI / 2.25, 0.08, 0]} visible={false}>
+        <torusGeometry args={[1.72, 0.018, 5, quality === 'high' ? 64 : quality === 'medium' ? 40 : 24]} />
+        <meshBasicMaterial
+          ref={sweepMaterial}
+          blending={THREE.AdditiveBlending}
+          color={GOAL_VISUAL_PALETTE.accentComplete}
+          depthWrite={false}
+          opacity={0}
+          transparent
+        />
+      </mesh>
     </group>
   );
 }

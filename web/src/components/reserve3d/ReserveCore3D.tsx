@@ -15,25 +15,7 @@ import {
   reserveQualityConfigs,
   type ReserveQualityTier,
 } from './reserveQuality';
-
-let webGLSupport: boolean | undefined;
-
-function supportsWebGL(): boolean {
-  if (webGLSupport !== undefined) {
-    return webGLSupport;
-  }
-
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    webGLSupport = Boolean(context);
-    context?.getExtension('WEBGL_lose_context')?.loseContext();
-  } catch {
-    webGLSupport = false;
-  }
-
-  return webGLSupport;
-}
+import { supportsWebGL } from './webglSupport';
 
 function getProgressText(goalProgress: number): string {
   return `${Math.round(goalProgress)}% цели`;
@@ -83,6 +65,7 @@ export default function ReserveCore3D(props: ReserveCoreData) {
   const reducedMotion = usePrefersReducedMotion();
   const canvasContainer = useRef<HTMLDivElement>(null);
   const qualityChangeAt = useRef(Number.NEGATIVE_INFINITY);
+  const [webGLSupported, setWebGLSupported] = useState<boolean | null>(null);
   const [quality, setQuality] = useState<ReserveQualityTier>(() => getInitialReserveQuality(reducedMotion));
   const isSceneActive = useSceneVisibility(canvasContainer);
   const qualityConfig = reserveQualityConfigs[quality];
@@ -90,6 +73,10 @@ export default function ReserveCore3D(props: ReserveCoreData) {
     () => getReserveVisualState(reserveTotal, targetAmount),
     [reserveTotal, targetAmount],
   );
+
+  useEffect(() => {
+    setWebGLSupported(supportsWebGL());
+  }, []);
 
   useEffect(() => {
     const deviceQuery = window.matchMedia('(max-width: 719px), (max-width: 1024px) and (pointer: coarse)');
@@ -132,7 +119,11 @@ export default function ReserveCore3D(props: ReserveCoreData) {
     });
   }, [reducedMotion]);
 
-  if (!supportsWebGL()) {
+  if (webGLSupported === null) {
+    return null;
+  }
+
+  if (!webGLSupported) {
     return <ReserveCoreFallback {...props} />;
   }
 

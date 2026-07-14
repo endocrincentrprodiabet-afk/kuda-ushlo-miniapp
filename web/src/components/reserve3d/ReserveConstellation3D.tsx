@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AdaptiveDpr, PerformanceMonitor, usePerformanceMonitor } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, type RootState } from '@react-three/fiber';
 import { AnimatedMoney } from '../AnimatedMoney';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { getGoalProgress } from '../../lib/calculations';
@@ -8,6 +8,7 @@ import { formatMoney } from '../../lib/format';
 import { getGoalCategoryLabel } from '../../lib/goalCategories';
 import type { ReserveConstellationData } from '../../lib/reserveVisual';
 import { ReserveConstellationFallback } from './ReserveConstellationFallback';
+import { ReserveConstellationLoading } from './ReserveConstellationLoading';
 import { ReserveConstellationScene } from './ReserveConstellationScene';
 import {
   getInitialReserveQuality,
@@ -17,25 +18,9 @@ import {
   reserveQualityConfigs,
   type ReserveQualityTier,
 } from './reserveQuality';
+import { supportsWebGL } from './webglSupport';
 
-let webGLSupport: boolean | undefined;
-
-function supportsWebGL(): boolean {
-  if (webGLSupport !== undefined) {
-    return webGLSupport;
-  }
-
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    webGLSupport = Boolean(context);
-    context?.getExtension('WEBGL_lose_context')?.loseContext();
-  } catch {
-    webGLSupport = false;
-  }
-
-  return webGLSupport;
-}
+type WebGLCapability = 'checking' | 'supported' | 'unsupported';
 
 function AdaptivePerformanceDpr() {
   const regress = useThree((state) => state.performance.regress);
@@ -96,12 +81,21 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
   const reducedMotion = usePrefersReducedMotion();
   const isMobile = useMobileConstellation();
   const canvasContainer = useRef<HTMLDivElement>(null);
+  const contextCleanup = useRef<(() => void) | null>(null);
   const qualityChangeAt = useRef(Number.NEGATIVE_INFINITY);
+  const viewportChangeAt = useRef(Number.NEGATIVE_INFINITY);
+  const [capability, setCapability] = useState<WebGLCapability>('checking');
+  const [contextRecovering, setContextRecovering] = useState(false);
+  const [rendererFailed, setRendererFailed] = useState(false);
   const [quality, setQuality] = useState<ReserveQualityTier>(() => getInitialReserveQuality(reducedMotion));
   const isSceneActive = useSceneVisibility(canvasContainer);
   const qualityConfig = reserveQualityConfigs[quality];
   const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? null;
   const selectedProgress = selectedGoal ? getGoalProgress(selectedGoal) : 0;
+
+  useEffect(() => {
+    setCapability(supportsWebGL() ? 'supported' : 'unsupported');
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 719px), (max-width: 1024px) and (pointer: coarse)');
@@ -112,16 +106,87 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
     return () => query.removeEventListener('change', updateInitialTier);
   }, [reducedMotion]);
 
+  useEffect(() => {
+    const markViewportChange = () => {
+      viewportChangeAt.current = performance.now();
+    };
+    const visualViewport = window.visualViewport;
+
+    window.addEventListener('resize', markViewportChange);
+    visualViewport?.addEventListener('resize', markViewportChange);
+
+    return () => {
+      window.removeEventListener('resize', markViewportChange);
+      visualViewport?.removeEventListener('resize', markViewportChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!contextRecovering) {
+      return;
+    }
+
+    let recoveryTimer: number | null = null;
+    const clearRecoveryTimer = () => {
+      if (recoveryTimer !== null) {
+        window.clearTimeout(recoveryTimer);
+        recoveryTimer = null;
+      }
+    };
+    const startRecoveryTimer = () => {
+      clearRecoveryTimer();
+
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
+
+      recoveryTimer = window.setTimeout(() => {
+        setContextRecovering(false);
+        setRendererFailed(true);
+      }, 5000);
+    };
+
+    startRecoveryTimer();
+    document.addEventListener('visibilitychange', startRecoveryTimer);
+
+    return () => {
+      clearRecoveryTimer();
+      document.removeEventListener('visibilitychange', startRecoveryTimer);
+    };
+  }, [contextRecovering]);
+
+  useEffect(() => {
+    if (!rendererFailed) {
+      return;
+    }
+
+    contextCleanup.current?.();
+    contextCleanup.current = null;
+  }, [rendererFailed]);
+
+  useEffect(
+    () => () => {
+      contextCleanup.current?.();
+      contextCleanup.current = null;
+    },
+    [],
+  );
+
   const handleQualityDecline = useCallback(() => {
     const now = performance.now();
 
-    if (now - qualityChangeAt.current < 4000) {
+    if (
+      !isSceneActive ||
+      document.visibilityState === 'hidden' ||
+      now - viewportChangeAt.current < 3000 ||
+      now - qualityChangeAt.current < 4000
+    ) {
       return;
     }
 
     qualityChangeAt.current = now;
     setQuality((current) => lowerReserveQuality(current));
-  }, []);
+  }, [isSceneActive]);
 
   const handleQualityIncline = useCallback(() => {
     if (reducedMotion) {
@@ -143,7 +208,35 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
     });
   }, [reducedMotion]);
 
-  if (!supportsWebGL()) {
+  const handleCanvasCreated = useCallback(({ gl, invalidate }: RootState) => {
+    contextCleanup.current?.();
+    setRendererFailed(false);
+    setContextRecovering(false);
+    gl.setClearAlpha(0);
+
+    const canvas = gl.domElement;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      setContextRecovering(true);
+    };
+    const handleContextRestored = () => {
+      setContextRecovering(false);
+      window.requestAnimationFrame(() => invalidate());
+    };
+
+    canvas.addEventListener('webglcontextlost', handleContextLost, false);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+    contextCleanup.current = () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost, false);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored, false);
+    };
+  }, []);
+
+  if (capability === 'checking') {
+    return <ReserveConstellationLoading {...props} />;
+  }
+
+  if (capability === 'unsupported' || rendererFailed) {
     return <ReserveConstellationFallback {...props} />;
   }
 
@@ -167,8 +260,12 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
           camera={{ fov: isMobile ? 39 : 37, near: 0.1, far: 40, position: [0, 0, isMobile ? 6.5 : 7.1] }}
           dpr={qualityConfig.dpr}
           frameloop={useContinuousRendering ? 'always' : 'demand'}
-          gl={{ alpha: true, antialias: quality !== 'low', powerPreference: 'high-performance' }}
-          onCreated={({ gl }) => gl.setClearAlpha(0)}
+          gl={{
+            alpha: true,
+            antialias: quality !== 'low',
+            powerPreference: isMobile ? 'default' : 'high-performance',
+          }}
+          onCreated={handleCanvasCreated}
         >
           <PerformanceMonitor
             bounds={(refreshRate) => (refreshRate > 90 ? [55, 85] : [38, 57])}
@@ -187,6 +284,11 @@ export default function ReserveConstellation3D(props: ReserveConstellationData) 
             />
           </PerformanceMonitor>
         </Canvas>
+        {contextRecovering ? (
+          <div className="reserve-constellation__recovery" role="status">
+            Восстановление 3D-сцены
+          </div>
+        ) : null}
       </div>
 
       {selectedGoal ? (

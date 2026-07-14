@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { ReserveCoreErrorBoundary } from '../components/reserve3d/ReserveCoreErrorBoundary';
 import { ReserveConstellationFallback } from '../components/reserve3d/ReserveConstellationFallback';
+import { ReserveConstellationLoading } from '../components/reserve3d/ReserveConstellationLoading';
 import { ReserveGoalDeleteModal } from '../components/reserve3d/ReserveGoalDeleteModal';
 import { ReserveGoalModal } from '../components/reserve3d/ReserveGoalModal';
 import { getReserveEmptyCopy, pluralizeRu, uiCopy } from '../content/uiCopy';
@@ -286,6 +287,7 @@ export function ReserveScreen({
   };
 
   const constellationFallback = <ReserveConstellationFallback {...constellationProps} />;
+  const constellationLoading = <ReserveConstellationLoading {...constellationProps} />;
   const closureModal = closureModalOpen
     ? createPortal(
         <div className="reserve-modal-backdrop" onMouseDown={() => setClosureModalOpen(false)} role="presentation">
@@ -371,8 +373,12 @@ export function ReserveScreen({
         </section>
 
         {reserveGoals.length ? (
-          <ReserveCoreErrorBoundary fallback={constellationFallback}>
-            <Suspense fallback={constellationFallback}>
+          <ReserveCoreErrorBoundary
+            fallback={constellationFallback}
+            resetKey={selectedGoalId ?? 'none'}
+            retryFallback={constellationLoading}
+          >
+            <Suspense fallback={constellationLoading}>
               <ReserveConstellation3D {...constellationProps} />
             </Suspense>
           </ReserveCoreErrorBoundary>

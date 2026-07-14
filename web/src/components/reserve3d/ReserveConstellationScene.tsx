@@ -90,6 +90,10 @@ export function ReserveConstellationScene({
   });
 
   function handlePointerDown(event: ThreeEvent<PointerEvent>) {
+    if (isMobile && quality === 'low') {
+      return;
+    }
+
     regress();
     drag.current = {
       active: false,
@@ -112,7 +116,13 @@ export function ReserveConstellationScene({
     const deltaY = event.clientY - currentDrag.startY;
 
     if (!currentDrag.active) {
-      if (Math.abs(deltaX) < 8 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) {
+      const horizontalThreshold = isMobile ? 10 : 8;
+      const directionRatio = isMobile ? 1.35 : 1.2;
+
+      if (
+        Math.abs(deltaX) < horizontalThreshold ||
+        Math.abs(deltaX) <= Math.abs(deltaY) * directionRatio
+      ) {
         return;
       }
 
@@ -121,11 +131,9 @@ export function ReserveConstellationScene({
     }
 
     event.stopPropagation();
-    targetRotation.current.x = THREE.MathUtils.clamp(
-      currentDrag.startRotationX + deltaY * 0.0024,
-      -0.24,
-      0.24,
-    );
+    targetRotation.current.x = isMobile
+      ? currentDrag.startRotationX
+      : THREE.MathUtils.clamp(currentDrag.startRotationX + deltaY * 0.0024, -0.24, 0.24);
     targetRotation.current.y = THREE.MathUtils.clamp(
       currentDrag.startRotationY + deltaX * 0.0038,
       -0.5,

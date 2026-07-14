@@ -3264,7 +3264,52 @@ input::placeholder {
 
 /* Reserve Goal Constellation */
 .reserve-constellation__canvas {
+  width: 100%;
+  max-width: 100%;
   height: clamp(270px, 74vw, 320px);
+  overflow: hidden;
+  overscroll-behavior: contain auto;
+}
+
+.reserve-constellation__loading {
+  display: grid;
+  width: 100%;
+  height: clamp(270px, 74vw, 320px);
+  min-height: 270px;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.reserve-constellation__loading-ring {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(110, 228, 208, 0.2);
+  border-top-color: rgba(110, 228, 208, 0.68);
+  border-radius: 50%;
+  animation: reserve-loading-spin 900ms linear infinite;
+}
+
+.reserve-constellation__recovery {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  background: rgba(8, 11, 15, 0.58);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+@keyframes reserve-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .reserve-active-goal__header {
@@ -4202,6 +4247,10 @@ input::placeholder {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reserve-constellation__loading-ring {
+    animation: none;
+  }
+
   .reserve-goal-item,
   .reserve-goal-item__track span,
   .reserve-active-goal__progress-track > span {
@@ -4210,7 +4259,8 @@ input::placeholder {
 }
 
 @media (min-width: 720px) {
-  .reserve-constellation__canvas {
+  .reserve-constellation__canvas,
+  .reserve-constellation__loading {
     height: 350px;
   }
 
