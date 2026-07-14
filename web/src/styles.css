@@ -66,6 +66,10 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.money-value {
+  unicode-bidi: isolate;
+}
+
 .app-shell {
   width: min(100%, var(--app-max-width));
   min-height: 100vh;
@@ -1903,15 +1907,113 @@ input::placeholder {
   line-height: 1.45;
 }
 
+.currency-selector-trigger {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 9px 12px;
+  background: rgba(21, 26, 32, 0.72);
+  color: var(--text);
+  text-align: left;
+}
+
+.currency-selector-trigger__body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.currency-selector-trigger__body small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.currency-selector-trigger__body strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currency-selector-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: rgba(8, 10, 13, 0.76);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: modal-backdrop-enter 160ms ease both;
+}
+
+.currency-selector-modal {
+  display: flex;
+  width: min(100%, 488px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(28, 34, 43, 0.98), rgba(21, 26, 32, 0.99)),
+    var(--surface);
+  box-shadow: 0 24px 62px rgba(0, 0, 0, 0.46);
+  animation: modal-enter 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.currency-selector-modal__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.currency-selector-modal__head > div {
+  display: grid;
+  gap: 5px;
+}
+
+.currency-selector-modal__head h2,
+.currency-selector-modal__head p {
+  margin: 0;
+}
+
+.currency-selector-modal__close {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 7px 0 7px 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .currency-selector {
   display: grid;
-  max-height: min(370px, 48dvh);
+  min-height: 0;
   gap: 7px;
   overflow-y: auto;
   padding-right: 3px;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.currency-selector::-webkit-scrollbar {
+  display: none;
 }
 
 .currency-option {
@@ -1946,10 +2048,18 @@ input::placeholder {
 }
 
 .currency-option__label {
+  display: grid;
   min-width: 0;
+  gap: 2px;
   overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 620;
+}
+
+.currency-option__label small {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 650;
 }
 
 .currency-option__code {
@@ -1957,6 +2067,12 @@ input::placeholder {
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.06em;
+}
+
+.currency-selector-trigger:focus-visible,
+.currency-selector-modal button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .settings-plan__budget {
@@ -2417,6 +2533,25 @@ input::placeholder {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.currency-confirmation-change {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(21, 26, 32, 0.62);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+}
+
+.currency-confirmation-change strong {
+  color: var(--accent);
 }
 
 .confirm-modal__field {
@@ -2972,6 +3107,8 @@ input::placeholder {
   .splash-screen--leaving,
   .modal-backdrop,
   .confirm-modal,
+  .currency-selector-backdrop,
+  .currency-selector-modal,
   .savings-warning-backdrop,
   .reserve-modal-backdrop,
   .week-details-overlay,

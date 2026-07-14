@@ -1,42 +1,7 @@
 import 'dotenv/config';
 import { createServer } from 'node:http';
 import { Bot, Keyboard } from 'grammy';
-
-type CurrencyCode =
-  | 'RUB'
-  | 'USD'
-  | 'EUR'
-  | 'GBP'
-  | 'TRY'
-  | 'CNY'
-  | 'JPY'
-  | 'KZT'
-  | 'AED'
-  | 'GEL';
-
-type CurrencyConfig = {
-  code: CurrencyCode;
-  locale: string;
-  symbol: string;
-  fractionDigits: number;
-};
-
-const currencies: readonly CurrencyConfig[] = [
-  { code: 'RUB', locale: 'ru-RU', symbol: '₽', fractionDigits: 0 },
-  { code: 'USD', locale: 'en-US', symbol: '$', fractionDigits: 0 },
-  { code: 'EUR', locale: 'de-DE', symbol: '€', fractionDigits: 0 },
-  { code: 'GBP', locale: 'en-GB', symbol: '£', fractionDigits: 0 },
-  { code: 'TRY', locale: 'tr-TR', symbol: '₺', fractionDigits: 0 },
-  { code: 'CNY', locale: 'zh-CN', symbol: '¥', fractionDigits: 0 },
-  { code: 'JPY', locale: 'ja-JP', symbol: '¥', fractionDigits: 0 },
-  { code: 'KZT', locale: 'kk-KZ', symbol: '₸', fractionDigits: 0 },
-  { code: 'AED', locale: 'ar-AE', symbol: 'د.إ', fractionDigits: 0 },
-  { code: 'GEL', locale: 'ka-GE', symbol: '₾', fractionDigits: 0 },
-] as const;
-
-const currencyByCode = new Map<CurrencyCode, CurrencyConfig>(
-  currencies.map((currency) => [currency.code, currency]),
-);
+import { formatMoney, isCurrencyCode, normalizeCurrencyCode, type CurrencyCode } from './currency.js';
 
 type ExpenseReportPayload = {
   type: 'expense_report';
@@ -59,6 +24,10 @@ type ExpenseReportPayload = {
     note: string;
     date: string;
   }>;
+};
+
+type ExpenseReportPayloadInput = Record<string, unknown> & {
+  currency?: CurrencyCode | string;
 };
 
 const botToken = process.env.BOT_TOKEN;
@@ -172,9 +141,10 @@ function parseExpenseReport(rawData: string): ParseResult {
     };
   }
 
+  const payload = data as ExpenseReportPayloadInput;
   const normalizedData = {
-    ...data,
-    currency: normalizeCurrencyCode(data.currency),
+    ...payload,
+    currency: normalizeCurrencyCode(payload.currency),
   };
 
   if (!isExpenseReportPayload(normalizedData)) {
@@ -234,14 +204,6 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isCurrencyCode(value: unknown): value is CurrencyCode {
-  return typeof value === 'string' && currencyByCode.has(value as CurrencyCode);
-}
-
-function normalizeCurrencyCode(value: unknown): CurrencyCode {
-  return isCurrencyCode(value) ? value : 'RUB';
-}
-
 function formatExpenseReport(report: ExpenseReportPayload): string {
   const limitLabel = report.isLimitExceeded ? 'Превышение' : 'Осталось';
   const limitAmount = Math.abs(report.limitDiff);
@@ -289,31 +251,6 @@ function formatRecentExpenses(report: ExpenseReportPayload): string {
     .join('\n');
 }
 
-function formatMoney(amount: number, currency: CurrencyCode): string {
-  const safeAmount = Number.isFinite(amount) ? amount : 0;
-  const safeCurrency = normalizeCurrencyCode(currency);
-  const config = currencyByCode.get(safeCurrency) ?? currencyByCode.get('RUB')!;
-
-  try {
-    return new Intl.NumberFormat(config.locale, {
-      style: 'currency',
-      currency: config.code,
-      currencyDisplay: 'narrowSymbol',
-      minimumFractionDigits: config.fractionDigits,
-      maximumFractionDigits: config.fractionDigits,
-    }).format(safeAmount);
-  } catch {
-    const parts = new Intl.NumberFormat(config.locale, {
-      style: 'currency',
-      currency: config.code,
-      currencyDisplay: 'code',
-      minimumFractionDigits: config.fractionDigits,
-      maximumFractionDigits: config.fractionDigits,
-    }).formatToParts(safeAmount);
-
-    return parts.map((part) => (part.type === 'currency' ? config.symbol : part.value)).join('');
-  }
-}
 async function main() {
   console.log('Starting bot...');
 

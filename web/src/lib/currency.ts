@@ -1,24 +1,35 @@
 import type { CurrencyCode, CurrencyConfig } from '../types';
 
-export const CURRENCIES: readonly CurrencyConfig[] = [
-  { code: 'RUB', label: 'Российский рубль', shortLabel: 'Рубль', locale: 'ru-RU', symbol: '₽', fractionDigits: 0 },
-  { code: 'USD', label: 'Доллар США', shortLabel: 'Доллар', locale: 'en-US', symbol: '$', fractionDigits: 0 },
-  { code: 'EUR', label: 'Евро', shortLabel: 'Евро', locale: 'de-DE', symbol: '€', fractionDigits: 0 },
-  { code: 'GBP', label: 'Британский фунт', shortLabel: 'Фунт', locale: 'en-GB', symbol: '£', fractionDigits: 0 },
-  { code: 'TRY', label: 'Турецкая лира', shortLabel: 'Лира', locale: 'tr-TR', symbol: '₺', fractionDigits: 0 },
-  { code: 'CNY', label: 'Китайский юань', shortLabel: 'Юань', locale: 'zh-CN', symbol: '¥', fractionDigits: 0 },
-  { code: 'JPY', label: 'Японская иена', shortLabel: 'Иена', locale: 'ja-JP', symbol: '¥', fractionDigits: 0 },
-  { code: 'KZT', label: 'Казахстанский тенге', shortLabel: 'Тенге', locale: 'kk-KZ', symbol: '₸', fractionDigits: 0 },
-  { code: 'AED', label: 'Дирхам ОАЭ', shortLabel: 'Дирхам', locale: 'ar-AE', symbol: 'د.إ', fractionDigits: 0 },
-  { code: 'GEL', label: 'Грузинский лари', shortLabel: 'Лари', locale: 'ka-GE', symbol: '₾', fractionDigits: 0 },
-] as const;
+export const CURRENCY_CODES: CurrencyCode[] = [
+  'RUB',
+  'USD',
+  'EUR',
+  'GBP',
+  'TRY',
+  'CNY',
+  'JPY',
+  'KZT',
+  'AED',
+  'GEL',
+];
 
-const currencyByCode = new Map<CurrencyCode, CurrencyConfig>(
-  CURRENCIES.map((currency) => [currency.code, currency]),
-);
+export const CURRENCY_CONFIG: Record<CurrencyCode, CurrencyConfig> = {
+  RUB: { code: 'RUB', label: 'Российский рубль', shortLabel: 'Рубль', locale: 'ru-RU', symbol: '₽', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  USD: { code: 'USD', label: 'Доллар США', shortLabel: 'Доллар', locale: 'en-US', symbol: '$', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  EUR: { code: 'EUR', label: 'Евро', shortLabel: 'Евро', locale: 'de-DE', symbol: '€', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  GBP: { code: 'GBP', label: 'Британский фунт', shortLabel: 'Фунт', locale: 'en-GB', symbol: '£', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  TRY: { code: 'TRY', label: 'Турецкая лира', shortLabel: 'Лира', locale: 'tr-TR', symbol: '₺', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  CNY: { code: 'CNY', label: 'Китайский юань', shortLabel: 'Юань', locale: 'zh-CN', symbol: '¥', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  JPY: { code: 'JPY', label: 'Японская иена', shortLabel: 'Иена', locale: 'ja-JP', symbol: '￥', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  KZT: { code: 'KZT', label: 'Казахстанский тенге', shortLabel: 'Тенге', locale: 'kk-KZ', symbol: '₸', fractionDigits: 0, displayMode: 'narrowSymbol' },
+  AED: { code: 'AED', label: 'Дирхам ОАЭ', shortLabel: 'Дирхам', locale: 'en-AE', symbol: 'د.إ', fractionDigits: 0, displayMode: 'code' },
+  GEL: { code: 'GEL', label: 'Грузинский лари', shortLabel: 'Лари', locale: 'ka-GE', symbol: '₾', fractionDigits: 0, displayMode: 'narrowSymbol' },
+};
+
+const currencyCodes = new Set<CurrencyCode>(CURRENCY_CODES);
 
 export function isCurrencyCode(value: unknown): value is CurrencyCode {
-  return typeof value === 'string' && currencyByCode.has(value as CurrencyCode);
+  return typeof value === 'string' && currencyCodes.has(value as CurrencyCode);
 }
 
 export function normalizeCurrencyCode(value: unknown): CurrencyCode {
@@ -26,5 +37,5 @@ export function normalizeCurrencyCode(value: unknown): CurrencyCode {
 }
 
 export function getCurrencyConfig(value: CurrencyCode): CurrencyConfig {
-  return currencyByCode.get(value) ?? currencyByCode.get('RUB')!;
+  return CURRENCY_CONFIG[normalizeCurrencyCode(value)];
 }

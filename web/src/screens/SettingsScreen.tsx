@@ -1,4 +1,11 @@
-import { CSSProperties, FormEvent, useEffect, useState } from 'react';
+import {
+  CSSProperties,
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatedMoney } from '../components/AnimatedMoney';
 import { getSavingsWarningCopy, uiCopy } from '../content/uiCopy';
@@ -9,14 +16,13 @@ import {
 } from '../lib/calculations';
 import { formatScheduledIncomeDate } from '../lib/date';
 import { formatMoney } from '../lib/format';
-import { CURRENCIES } from '../lib/currency';
+import { CURRENCY_CODES, getCurrencyConfig } from '../lib/currency';
 import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
 import type { CurrencyCode, IncomeEntry, Settings } from '../types';
 
 type SettingsScreenProps = {
   settings: Settings;
   incomeEntries: IncomeEntry[];
-  onChangeCurrency: (currency: CurrencyCode) => void;
   onSaveSettings: (settings: Settings) => void;
   onOpenAddIncome: () => void;
   onOpenReserveTopUp: () => void;
@@ -46,7 +52,6 @@ function getDayAfter(date: Date): Date {
 export function SettingsScreen({
   settings,
   incomeEntries,
-  onChangeCurrency,
   onSaveSettings,
   onOpenAddIncome,
   onOpenReserveTopUp,
@@ -58,11 +63,15 @@ export function SettingsScreen({
   const [secondIncomeDate, setSecondIncomeDate] = useState(settings.secondIncomeDate);
   const [regularIncomeAmount, setRegularIncomeAmount] = useState(String(settings.regularIncomeAmount || ''));
   const [savingsGoal, setSavingsGoal] = useState(settings.savingsGoal);
+  const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>(settings.currency);
+  const [currencySelectorOpen, setCurrencySelectorOpen] = useState(false);
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [clearConfirmationText, setClearConfirmationText] = useState('');
   const [savingsConfirmationOpen, setSavingsConfirmationOpen] = useState(false);
   const [pendingSettings, setPendingSettings] = useState<Settings | null>(null);
   const [pendingCurrency, setPendingCurrency] = useState<CurrencyCode | null>(null);
+  const currencyTriggerRef = useRef<HTMLButtonElement>(null);
+  const currencyOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const canClearData = clearConfirmationText.trim() === 'ОЧИСТИТЬ';
 
   const parsedAvailableNow = parseMoneyInput(availableNow);
@@ -77,7 +86,7 @@ export function SettingsScreen({
     secondIncomeDate,
     regularIncomeAmount: parsedRegularIncomeAmount,
     savingsGoal,
-    currency: settings.currency,
+    currency: draftCurrency,
   };
   const workingBudget = getWorkingBudget(previewSettings, incomeEntries);
   const clampedSavingsGoal = snapSavingsGoal(savingsGoal, workingBudget);
@@ -104,6 +113,7 @@ export function SettingsScreen({
     setSecondIncomeDate(settings.secondIncomeDate);
     setRegularIncomeAmount(String(settings.regularIncomeAmount || ''));
     setSavingsGoal(settings.savingsGoal);
+    setDraftCurrency(settings.currency);
   }, [
     settings.availableNow,
     settings.incomeFrequency,
@@ -111,6 +121,7 @@ export function SettingsScreen({
     settings.secondIncomeDate,
     settings.regularIncomeAmount,
     settings.savingsGoal,
+    settings.currency,
   ]);
 
   useEffect(() => {
@@ -118,7 +129,7 @@ export function SettingsScreen({
   }, [workingBudget]);
 
   useEffect(() => {
-    if (!savingsConfirmationOpen && !pendingCurrency) {
+    if (!savingsConfirmationOpen && !currencySelectorOpen && !pendingCurrency) {
       return;
     }
 
@@ -128,12 +139,49 @@ export function SettingsScreen({
     return () => {
       document.body.style.overflow = previousBodyOverflow;
     };
-  }, [pendingCurrency, savingsConfirmationOpen]);
+  }, [currencySelectorOpen, pendingCurrency, savingsConfirmationOpen]);
+
+  useEffect(() => {
+    if (!currencySelectorOpen) {
+      return;
+    }
+
+    const selectedIndex = CURRENCY_CODES.indexOf(draftCurrency);
+    const frameId = window.requestAnimationFrame(() => {
+      currencyOptionRefs.current[Math.max(0, selectedIndex)]?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [currencySelectorOpen, draftCurrency]);
+
+  useEffect(() => {
+    if (!currencySelectorOpen && !pendingCurrency) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (pendingCurrency) {
+        setPendingCurrency(null);
+      } else {
+        setCurrencySelectorOpen(false);
+      }
+
+      window.requestAnimationFrame(() => currencyTriggerRef.current?.focus());
+    }
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [currencySelectorOpen, pendingCurrency]);
 
   function commitSettings(nextSettings: Settings) {
     onSaveSettings(nextSettings);
     setAvailableNow(String(nextSettings.availableNow || ''));
     setSavingsGoal(nextSettings.savingsGoal);
+    setDraftCurrency(nextSettings.currency);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -189,14 +237,29 @@ export function SettingsScreen({
     setClearConfirmationText('');
   }
 
+  function handleOpenCurrencySelector() {
+    setCurrencySelectorOpen(true);
+  }
+
+  function handleCloseCurrencySelector() {
+    setCurrencySelectorOpen(false);
+    window.requestAnimationFrame(() => currencyTriggerRef.current?.focus());
+  }
+
   function handleRequestCurrencyChange(currency: CurrencyCode) {
-    if (currency !== settings.currency) {
-      setPendingCurrency(currency);
+    setCurrencySelectorOpen(false);
+
+    if (currency === draftCurrency) {
+      window.requestAnimationFrame(() => currencyTriggerRef.current?.focus());
+      return;
     }
+
+    setPendingCurrency(currency);
   }
 
   function handleCancelCurrencyChange() {
     setPendingCurrency(null);
+    window.requestAnimationFrame(() => currencyTriggerRef.current?.focus());
   }
 
   function handleConfirmCurrencyChange() {
@@ -204,9 +267,53 @@ export function SettingsScreen({
       return;
     }
 
-    onChangeCurrency(pendingCurrency);
+    setDraftCurrency(pendingCurrency);
     setPendingCurrency(null);
+    window.requestAnimationFrame(() => currencyTriggerRef.current?.focus());
   }
+
+  function handleCurrencyOptionKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex = index;
+
+    if (event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % CURRENCY_CODES.length;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + CURRENCY_CODES.length) % CURRENCY_CODES.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = CURRENCY_CODES.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    currencyOptionRefs.current[nextIndex]?.focus();
+  }
+
+  function handleCurrencyModalKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (!first || !last) {
+      return;
+    }
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  const selectedCurrency = getCurrencyConfig(draftCurrency);
 
   const savingsConfirmationModal =
     savingsConfirmationOpen && savingsWarningContent
@@ -270,7 +377,7 @@ export function SettingsScreen({
                   type="number"
                   value={availableNow}
                 />
-                <span className="money-input__currency">{settings.currency}</span>
+                <span className="money-input__currency">{draftCurrency}</span>
               </div>
             </label>
 
@@ -334,7 +441,7 @@ export function SettingsScreen({
                   type="number"
                   value={regularIncomeAmount}
                 />
-                <span className="money-input__currency">{settings.currency}</span>
+                <span className="money-input__currency">{draftCurrency}</span>
               </div>
             </label>
 
@@ -366,7 +473,7 @@ export function SettingsScreen({
                 <div className="monthly-spending-limit">
                   <span>Деньги в работе</span>
                   <strong>
-                    <AnimatedMoney amount={workingBudget} currency={settings.currency} />
+                    <AnimatedMoney amount={workingBudget} currency={draftCurrency} />
                   </strong>
                 </div>
               </div>
@@ -376,7 +483,7 @@ export function SettingsScreen({
                 <AnimatedMoney
                   amount={clampedSavingsGoal}
                   className="savings-goal-display"
-                  currency={settings.currency}
+                  currency={draftCurrency}
                   debounceMs={180}
                 />
                 <p className="savings-panel__helper">План не пополняет сейф автоматически.</p>
@@ -421,12 +528,12 @@ export function SettingsScreen({
                 <div className="monthly-spending-limit">
                   <span>На расходы</span>
                   <strong>
-                    <AnimatedMoney amount={monthlySpendingLimit} currency={settings.currency} />
+                    <AnimatedMoney amount={monthlySpendingLimit} currency={draftCurrency} />
                   </strong>
                 </div>
                 <div className="monthly-spending-limit monthly-spending-limit--secondary">
                   <span>План на день</span>
-                  <strong>{formatMoney(plannedDailyTarget, settings.currency)} / день</strong>
+                  <strong>{formatMoney(plannedDailyTarget, draftCurrency)} / день</strong>
                 </div>
                 <p className="settings-plan-note">На расходы и план на день рассчитываются автоматически.</p>
               </div>
@@ -435,29 +542,25 @@ export function SettingsScreen({
 
           <section className="currency-settings" aria-labelledby="currency-settings-title">
             <div className="currency-settings__head">
-              <h2 id="currency-settings-title">{uiCopy.currency.title}</h2>
-              <p>{uiCopy.currency.helper}</p>
+              <h2 id="currency-settings-title">{uiCopy.currency.sectionTitle}</h2>
+              <p>{uiCopy.currency.sectionDescription}</p>
             </div>
-            <div className="currency-selector" role="list">
-              {CURRENCIES.map((currency) => {
-                const isSelected = currency.code === settings.currency;
-
-                return (
-                  <button
-                    aria-pressed={isSelected}
-                    className={`currency-option${isSelected ? ' currency-option--selected' : ''}`}
-                    key={currency.code}
-                    onClick={() => handleRequestCurrencyChange(currency.code)}
-                    role="listitem"
-                    type="button"
-                  >
-                    <span className="currency-option__symbol" aria-hidden="true">{currency.symbol}</span>
-                    <span className="currency-option__label">{currency.label}</span>
-                    <span className="currency-option__code">{currency.code}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              aria-expanded={currencySelectorOpen}
+              aria-haspopup="dialog"
+              aria-label={`${uiCopy.currency.selectorLabel}: ${selectedCurrency.label}, ${selectedCurrency.code}`}
+              className="currency-selector-trigger"
+              onClick={handleOpenCurrencySelector}
+              ref={currencyTriggerRef}
+              type="button"
+            >
+              <span className="currency-option__symbol" aria-hidden="true">{selectedCurrency.symbol}</span>
+              <span className="currency-selector-trigger__body">
+                <small>{uiCopy.currency.selectorLabel}</small>
+                <strong>{selectedCurrency.label}</strong>
+              </span>
+              <span className="currency-option__code">{selectedCurrency.code}</span>
+            </button>
           </section>
 
           <button className="primary-button" type="submit">
@@ -476,6 +579,68 @@ export function SettingsScreen({
 
       {savingsConfirmationModal}
 
+      {currencySelectorOpen
+        ? createPortal(
+            <div
+              className="currency-selector-backdrop"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  handleCloseCurrencySelector();
+                }
+              }}
+              role="presentation"
+            >
+              <section
+                aria-labelledby="currency-selector-title"
+                aria-modal="true"
+                className="currency-selector-modal"
+                onKeyDown={handleCurrencyModalKeyDown}
+                role="dialog"
+              >
+                <div className="currency-selector-modal__head">
+                  <div>
+                    <p className="subtitle">{uiCopy.currency.sectionTitle}</p>
+                    <h2 id="currency-selector-title">{uiCopy.currency.selectTitle}</h2>
+                  </div>
+                  <button className="currency-selector-modal__close" onClick={handleCloseCurrencySelector} type="button">
+                    Закрыть
+                  </button>
+                </div>
+                <div className="currency-selector" role="listbox" aria-label={uiCopy.currency.selectorLabel}>
+                  {CURRENCY_CODES.map((currencyCode, index) => {
+                    const currency = getCurrencyConfig(currencyCode);
+                    const isSelected = currency.code === draftCurrency;
+
+                    return (
+                      <button
+                        aria-label={`${currency.label}, ${currency.code}${isSelected ? ', выбрано' : ''}`}
+                        aria-selected={isSelected}
+                        className={`currency-option${isSelected ? ' currency-option--selected' : ''}`}
+                        key={currency.code}
+                        onClick={() => handleRequestCurrencyChange(currency.code)}
+                        onKeyDown={(event) => handleCurrencyOptionKeyDown(event, index)}
+                        ref={(element) => {
+                          currencyOptionRefs.current[index] = element;
+                        }}
+                        role="option"
+                        type="button"
+                      >
+                        <span className="currency-option__symbol" aria-hidden="true">{currency.symbol}</span>
+                        <span className="currency-option__label">
+                          {currency.label}
+                          {isSelected ? <small>Выбрано</small> : null}
+                        </span>
+                        <span className="currency-option__code">{currency.code}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
+
       {pendingCurrency
         ? createPortal(
             <div className="modal-backdrop currency-confirmation-backdrop" role="presentation">
@@ -486,16 +651,21 @@ export function SettingsScreen({
                 aria-labelledby="currency-confirmation-title"
               >
                 <div className="confirm-modal__head">
-                  <p className="subtitle">{uiCopy.currency.title}</p>
-                  <h2 id="currency-confirmation-title">{uiCopy.currency.confirmationTitle}</h2>
+                  <p className="subtitle">{uiCopy.currency.sectionTitle}</p>
+                  <h2 id="currency-confirmation-title">{uiCopy.currency.confirmTitle}</h2>
                 </div>
-                <p className="confirm-modal__warning">{uiCopy.currency.confirmationText}</p>
+                <p className="confirm-modal__warning">{uiCopy.currency.confirmBody}</p>
+                <p className="currency-confirmation-change" aria-label={`${draftCurrency}, новая валюта ${pendingCurrency}`}>
+                  <span>{draftCurrency}</span>
+                  <span aria-hidden="true">→</span>
+                  <strong>{pendingCurrency}</strong>
+                </p>
                 <div className="confirm-modal__actions">
-                  <button className="secondary-button" onClick={handleCancelCurrencyChange} type="button">
+                  <button autoFocus className="secondary-button" onClick={handleCancelCurrencyChange} type="button">
                     {uiCopy.actions.cancel}
                   </button>
                   <button className="primary-button" onClick={handleConfirmCurrencyChange} type="button">
-                    {uiCopy.currency.confirmationAction}
+                    {uiCopy.currency.confirmAction}
                   </button>
                 </div>
               </section>

@@ -4,7 +4,7 @@ import type { CurrencyCode } from '../types';
 
 type AnimatedMoneyProps = {
   amount: number;
-  currency: CurrencyCode;
+  currency?: CurrencyCode;
   className?: string;
   debounceMs?: number;
   durationMs?: number;
@@ -18,7 +18,7 @@ function easeOutCubic(progress: number): number {
   return 1 - Math.pow(1 - progress, 3);
 }
 
-export function AnimatedMoney({ amount, currency, className, debounceMs = 140, durationMs = 380 }: AnimatedMoneyProps) {
+export function AnimatedMoney({ amount, currency = 'RUB', className, debounceMs = 140, durationMs = 380 }: AnimatedMoneyProps) {
   const [displayAmount, setDisplayAmount] = useState(amount);
   const previousAmountRef = useRef(amount);
   const currentAmountRef = useRef(amount);
@@ -68,5 +68,9 @@ export function AnimatedMoney({ amount, currency, className, debounceMs = 140, d
     };
   }, [amount, debounceMs, durationMs]);
 
-  return <span className={className}>{formatMoney(Math.round(displayAmount), currency)}</span>;
+  return (
+    <span className={className ? `money-value ${className}` : 'money-value'}>
+      {formatMoney(Math.round(displayAmount), currency)}
+    </span>
+  );
 }

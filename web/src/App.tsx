@@ -65,7 +65,7 @@ function isSwipeBlocked(target: EventTarget | null): boolean {
 
   return Boolean(
     target.closest(
-      'input, textarea, button, select, [role="button"], .modal-backdrop, .confirm-modal, .week-details-overlay, .week-details-sheet, .reserve-core__canvas',
+      'input, textarea, button, select, [role="button"], .modal-backdrop, .confirm-modal, .currency-selector-backdrop, .currency-selector-modal, .week-details-overlay, .week-details-sheet, .reserve-core__canvas',
     ),
   );
 }
@@ -348,11 +348,6 @@ export default function App() {
     setAppMessage(uiCopy.toasts.settingsSaved);
   }
 
-  function handleChangeCurrency(currency: Settings['currency']) {
-    setSettings((current) => ({ ...current, currency }));
-    setAppMessage(uiCopy.toasts.currencyChanged);
-  }
-
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
     if (activeDetail) {
       swipeStartRef.current = null;
@@ -455,7 +450,6 @@ export default function App() {
           <SettingsScreen
             settings={settings}
             incomeEntries={incomeEntries}
-            onChangeCurrency={handleChangeCurrency}
             onSaveSettings={handleSaveSettings}
             onOpenAddIncome={handleOpenAddIncome}
             onOpenReserveTopUp={() => handleOpenReserveTopUp()}

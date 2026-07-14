@@ -37,6 +37,7 @@ export type CurrencyConfig = {
   locale: string;
   symbol: string;
   fractionDigits: number;
+  displayMode?: 'narrowSymbol' | 'symbol' | 'code';
 };
 
 export type Settings = {

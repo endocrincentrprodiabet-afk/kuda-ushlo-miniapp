@@ -58,11 +58,14 @@ export const uiCopy = {
     unallocatedReserve: 'Свободно',
   },
   currency: {
-    title: 'Валюта',
-    helper: 'Используется для отображения всех сумм в приложении.',
-    confirmationTitle: 'Изменить валюту?',
-    confirmationText: 'Суммы останутся прежними — изменится только формат отображения.',
-    confirmationAction: 'Изменить валюту',
+    sectionTitle: 'Валюта',
+    sectionDescription: 'Используется для отображения всех сумм в приложении.',
+    selectorLabel: 'Основная валюта',
+    selectTitle: 'Выбери валюту',
+    confirmTitle: 'Изменить валюту?',
+    confirmBody: 'Суммы останутся прежними — изменится только формат отображения.',
+    confirmAction: 'Изменить валюту',
+    changedToast: 'Валюта изменена',
   },
   toasts: {
     expenseAdded: 'Расход добавлен',
@@ -79,7 +82,6 @@ export const uiCopy = {
     settingsSaved: 'Настройки сохранены',
     reportCreated: 'Отчёт сформирован',
     dataCleared: 'Данные очищены',
-    currencyChanged: 'Валюта изменена',
   },
   errors: {
     saveFailed: 'Не удалось сохранить изменения',

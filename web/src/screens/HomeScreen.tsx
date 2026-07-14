@@ -16,7 +16,7 @@ import {
   sumExpenses,
 } from '../lib/calculations';
 import { formatDate, formatScheduledIncomeDate } from '../lib/date';
-import { formatMoney, formatSignedMoney } from '../lib/format';
+import { formatCompactMoney, formatMoney, formatSignedMoney } from '../lib/format';
 import { getNextScheduledIncomeDate } from '../lib/incomeSchedule';
 import type { Expense, IncomeEntry, Screen, Settings } from '../types';
 
@@ -269,7 +269,7 @@ export function HomeScreen({
                   type="button"
                 >
                   <span className="month-weekly-bar__amount">
-                    {formatMoney(week.total, settings.currency, { notation: 'compact' })}
+                    {formatCompactMoney(week.total, settings.currency, { showCurrency: false })}
                   </span>
                   <div className="month-weekly-bar__track">
                     <span style={{ height: week.total > 0 ? `${Math.max(8, week.cappedFillPercent)}%` : '2px' }} />
