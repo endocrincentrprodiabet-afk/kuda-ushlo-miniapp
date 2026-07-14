@@ -1,45 +1,54 @@
+import { RoundedBox } from '@react-three/drei';
 import type { GoalObjectProps } from './types';
 import { useGoalObjectMaterials } from './useGoalObjectMaterials';
 
+const bookTransforms = [
+  { position: [0, -0.62, 0] as const, rotation: [0, 0.05, -0.07] as const, width: 1.92 },
+  { position: [0.08, -0.02, 0] as const, rotation: [0, -0.04, 0.08] as const, width: 1.78 },
+  { position: [-0.04, 0.58, 0] as const, rotation: [0, 0.06, -0.04] as const, width: 1.68 },
+];
+
 export function EducationGoalObject({ progress, quality }: GoalObjectProps) {
   const materials = useGoalObjectMaterials(progress, quality);
+  const smoothness = quality === 'high' ? 5 : quality === 'medium' ? 4 : 2;
 
   return (
-    <group rotation={[0.1, -0.3, -0.03]}>
-      <group position={[0, -0.62, 0]} rotation={[0, 0.05, -0.08]}>
-        <mesh material={materials.body} scale={[2, 0.34, 1.02]}>
-          <boxGeometry />
-        </mesh>
-        <mesh material={materials.accent} position={[-0.94, 0, 0.04]} scale={[0.12, 0.36, 1.04]}>
-          <boxGeometry />
-        </mesh>
-        <mesh material={materials.glass} position={[0.08, 0.2, 0]} scale={[1.72, 0.045, 0.86]}>
-          <boxGeometry />
-        </mesh>
-      </group>
-      <group position={[0.08, 0, 0]} rotation={[0, -0.04, 0.1]}>
-        <mesh material={materials.body} scale={[1.82, 0.34, 0.96]}>
-          <boxGeometry />
-        </mesh>
-        <mesh material={materials.accent} position={[-0.85, 0, 0]} scale={[0.12, 0.36, 0.98]}>
-          <boxGeometry />
-        </mesh>
-      </group>
-      <group position={[-0.04, 0.62, 0]} rotation={[0, 0.08, -0.045]}>
-        <mesh material={materials.body} scale={[1.7, 0.34, 0.9]}>
-          <boxGeometry />
-        </mesh>
-        <mesh material={materials.accent} position={[-0.79, 0, 0]} scale={[0.12, 0.36, 0.92]}>
-          <boxGeometry />
-        </mesh>
-      </group>
+    <group rotation={[0.07, -0.31, -0.025]} scale={0.98}>
+      {bookTransforms.map((book, index) => (
+        <group key={index} position={book.position} rotation={book.rotation}>
+          <RoundedBox
+            args={[book.width, 0.38, 0.98 - index * 0.04]}
+            material={index === 1 ? materials.dark : materials.body}
+            radius={0.065}
+            smoothness={smoothness}
+          />
+          <RoundedBox
+            args={[book.width - 0.22, 0.22, 0.87 - index * 0.04]}
+            material={materials.glass}
+            position={[0.07, 0, 0.025]}
+            radius={0.04}
+            smoothness={smoothness}
+          />
+          <RoundedBox
+            args={[0.13, 0.4, 1 - index * 0.04]}
+            material={materials.accent}
+            position={[-book.width / 2 + 0.06, 0, 0]}
+            radius={0.025}
+            smoothness={smoothness}
+          />
+        </group>
+      ))}
+
       {quality !== 'low' ? (
-        <group position={[0.84, 1.22, 0]}>
-          <mesh material={materials.accent} scale={[0.08, 0.68, 0.08]}>
-            <octahedronGeometry args={[1, 0]} />
-          </mesh>
-          <mesh material={materials.glass} position={[0, -0.48, 0]} scale={[0.28, 0.08, 0.28]}>
-            <octahedronGeometry args={[1, 0]} />
+        <group position={[0.62, 1.06, 0.04]} rotation={[0, 0, -0.13]}>
+          <RoundedBox
+            args={[0.11, 0.76, 0.065]}
+            material={materials.accent}
+            radius={0.025}
+            smoothness={smoothness}
+          />
+          <mesh material={materials.dark} position={[0, -0.43, 0]} rotation={[0, 0, Math.PI / 4]}>
+            <octahedronGeometry args={[0.13, quality === 'high' ? 1 : 0]} />
           </mesh>
         </group>
       ) : null}

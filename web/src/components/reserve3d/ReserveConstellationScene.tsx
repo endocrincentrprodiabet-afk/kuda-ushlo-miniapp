@@ -3,6 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getGoalProgress } from '../../lib/calculations';
 import type { ReserveGoal } from '../../types';
+import { GOAL_VISUAL_PALETTE, getGoalVisualState } from './goalObjects/goalVisualSystem';
 import { GoalObjectStage } from './goalObjects/GoalObjectStage';
 import { ReserveParticles } from './ReserveParticles';
 import { reserveQualityConfigs, type ReserveQualityTier } from './reserveQuality';
@@ -32,9 +33,9 @@ function DecorativeOrbit({ index, quality }: { index: number; quality: ReserveQu
     <mesh rotation={index === 0 ? [1.16, 0.12, 0.24] : [0.48, 1.06, -0.18]}>
       <torusGeometry args={args} />
       <meshBasicMaterial
-        color={index === 0 ? '#66d9c5' : '#a99be8'}
+        color={index === 0 ? GOAL_VISUAL_PALETTE.secondaryStart : '#8d88aa'}
         depthWrite={false}
-        opacity={index === 0 ? 0.16 : 0.08}
+        opacity={index === 0 ? 0.075 : 0.038}
         transparent
       />
     </mesh>
@@ -57,6 +58,7 @@ export function ReserveConstellationScene({
   const canvasElement = useThree((state) => state.gl.domElement);
   const config = reserveQualityConfigs[quality];
   const progress = activeGoal ? getGoalProgress(activeGoal) : 0;
+  const visualState = getGoalVisualState(progress, quality);
 
   useFrame((_, delta) => {
     if (!isActive || !interactionGroup.current) {
@@ -151,10 +153,21 @@ export function ReserveConstellationScene({
 
   return (
     <>
-      <ambientLight intensity={quality === 'low' ? 0.92 : 0.68} />
-      <pointLight color="#66d9c5" intensity={quality === 'low' ? 8 : 14} position={[3.5, 3, 4]} />
-      <pointLight color="#d7ff17" intensity={quality === 'low' ? 7 : 12} position={[-3.8, 1.4, 2.4]} />
-      {quality === 'high' ? <pointLight color="#a99be8" intensity={2.4} position={[1.2, -3, 2]} /> : null}
+      <hemisphereLight
+        color="#dbe5de"
+        groundColor="#111a17"
+        intensity={0.72 + visualState.easedProgress * 0.14}
+      />
+      <directionalLight
+        color="#edf2e8"
+        intensity={0.96 + visualState.easedProgress * 0.24}
+        position={[3.8, 4.6, 4.2]}
+      />
+      <directionalLight
+        color={GOAL_VISUAL_PALETTE.secondaryStart}
+        intensity={0.28 + visualState.easedProgress * 0.12}
+        position={[-3.2, 1.8, 3.4]}
+      />
 
       <group ref={interactionGroup}>
         <GoalObjectStage
@@ -180,13 +193,13 @@ export function ReserveConstellationScene({
 
         <group position={[0, -1.72, -0.08]}>
           <mesh>
-            <cylinderGeometry args={[0.92, 1.08, 0.1, config.baseSegments]} />
-            <meshStandardMaterial color="#121b1b" metalness={0.22} roughness={0.58} />
+            <cylinderGeometry args={[0.84, 0.98, 0.08, config.baseSegments]} />
+            <meshStandardMaterial color="#172322" metalness={0.22} roughness={0.62} />
           </mesh>
           {quality !== 'low' ? (
             <mesh position={[0, 0.055, 0]} rotation={[Math.PI / 2, 0, 0]}>
               <torusGeometry args={[0.78, 0.012, 5, config.baseSegments]} />
-              <meshBasicMaterial color="#66d9c5" depthWrite={false} opacity={0.24 + progress * 0.18} transparent />
+              <meshBasicMaterial color={GOAL_VISUAL_PALETTE.secondaryStart} depthWrite={false} opacity={0.18 + progress * 0.12} transparent />
             </mesh>
           ) : null}
         </group>

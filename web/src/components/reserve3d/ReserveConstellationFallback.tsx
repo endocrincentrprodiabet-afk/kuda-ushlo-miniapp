@@ -3,6 +3,7 @@ import { getGoalProgress } from '../../lib/calculations';
 import { formatMoney } from '../../lib/format';
 import { getGoalCategoryConfig, getGoalCategoryLabel } from '../../lib/goalCategories';
 import type { ReserveConstellationData } from '../../lib/reserveVisual';
+import { CarGoalFallbackVisual } from './goalObjects/CarGoalFallbackVisual';
 
 export function ReserveConstellationFallback({
   currency,
@@ -30,10 +31,20 @@ export function ReserveConstellationFallback({
         <h2>{selectedGoal.title}</h2>
       </header>
 
-      <div className="reserve-category-fallback" data-category={category} aria-hidden="true">
-        <span className="reserve-category-fallback__shape reserve-category-fallback__shape--primary" />
-        <span className="reserve-category-fallback__shape reserve-category-fallback__shape--secondary" />
-        <span className="reserve-category-fallback__accent" />
+      <div
+        className={`reserve-category-fallback${category === 'car' ? ' reserve-category-fallback--car' : ''}`}
+        data-category={category}
+        aria-hidden="true"
+      >
+        {category === 'car' ? (
+          <CarGoalFallbackVisual progress={progress} />
+        ) : (
+          <>
+            <span className="reserve-category-fallback__shape reserve-category-fallback__shape--primary" />
+            <span className="reserve-category-fallback__shape reserve-category-fallback__shape--secondary" />
+            <span className="reserve-category-fallback__accent" />
+          </>
+        )}
       </div>
 
       <div className="reserve-active-goal__details">

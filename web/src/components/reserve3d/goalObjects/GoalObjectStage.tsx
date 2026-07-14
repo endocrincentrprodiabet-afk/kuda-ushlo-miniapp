@@ -6,6 +6,7 @@ import { getGoalCategoryConfig } from '../../../lib/goalCategories';
 import type { ReserveGoal } from '../../../types';
 import type { ReserveQualityTier } from '../reserveQuality';
 import { getGoalObjectComponent } from './index';
+import { GOAL_VISUAL_PALETTE } from './goalVisualSystem';
 import type { GoalObjectTransitionState } from './types';
 
 type GoalObjectStageProps = {
@@ -66,6 +67,7 @@ function AnimatedGoalObject({
   const transitionProgress = useRef(phase === 'idle' || reducedMotion ? 1 : 0);
   const previousProgress = useRef(getGoalProgress(goal));
   const completionPulse = useRef(0);
+  const successPlayedRevision = useRef(-1);
   const exitNotified = useRef(false);
   const enterNotified = useRef(false);
   const managedMaterials = useRef<THREE.Material[]>([]);
@@ -98,11 +100,25 @@ function AnimatedGoalObject({
   useEffect(() => {
     if (previousProgress.current < 1 && progress >= 1 && !reducedMotion) {
       completionPulse.current = 1;
+      successPlayedRevision.current = revision;
       invalidate();
     }
 
     previousProgress.current = progress;
-  }, [invalidate, progress, reducedMotion]);
+  }, [invalidate, progress, reducedMotion, revision]);
+
+  useEffect(() => {
+    if (
+      progress >= 1 &&
+      phase === 'entering' &&
+      !reducedMotion &&
+      successPlayedRevision.current !== revision
+    ) {
+      successPlayedRevision.current = revision;
+      completionPulse.current = 1;
+      invalidate();
+    }
+  }, [invalidate, phase, progress, reducedMotion, revision]);
 
   useEffect(() => {
     if (isActive) {
@@ -116,6 +132,7 @@ function AnimatedGoalObject({
     }
 
     const safeDelta = Math.min(delta, 0.05);
+    const elapsed = state.clock.elapsedTime;
     const duration = reducedMotion ? 0.12 : 0.58;
     transitionProgress.current = reducedMotion
       ? 1
@@ -139,27 +156,31 @@ function AnimatedGoalObject({
         ? 1 - easedTransition * 0.08
         : 0.92 + easedTransition * 0.08;
     const completion = completionPulse.current;
-    const completionWave = reducedMotion ? 0 : Math.sin((1 - completion) * Math.PI) * completion * 0.035;
+    const successEnvelope =
+      reducedMotion || completion <= 0.001
+        ? 0
+        : Math.sin((1 - completion) * Math.PI);
+    const successScale = successEnvelope * 0.024;
+    const successLift = successEnvelope * 0.085;
     const progressScale = 0.96 + progress * 0.04;
     const mobileScale = isMobile ? 0.9 : 1;
 
     completionPulse.current = reducedMotion ? 0 : Math.max(0, completion - safeDelta * 0.92);
 
     if (outerGroup.current) {
-      outerGroup.current.position.set(0, verticalOffset, depthOffset);
+      outerGroup.current.position.set(0, verticalOffset + successLift, depthOffset);
       outerGroup.current.rotation.z = reducedMotion
         ? 0
         : isExiting
           ? easedTransition * -0.035
           : (1 - easedTransition) * 0.045;
       outerGroup.current.scale.setScalar(
-        mobileScale * progressScale * transitionScale * (1 + completionWave),
+        mobileScale * progressScale * transitionScale * (1 + successScale),
       );
     }
 
     const idleStrength = reducedMotion || quality === 'low' ? 0 : quality === 'high' ? 1 : 0.58;
     if (idleGroup.current) {
-      const elapsed = state.clock.elapsedTime;
       idleGroup.current.position.y = Math.sin(elapsed * 0.62) * 0.042 * idleStrength;
       idleGroup.current.rotation.x = Math.sin(elapsed * 0.34) * 0.018 * idleStrength;
       idleGroup.current.rotation.y = Math.sin(elapsed * 0.24) * 0.055 * idleStrength;
@@ -167,17 +188,37 @@ function AnimatedGoalObject({
     }
 
     managedMaterials.current.forEach((material) => {
-      material.transparent = true;
-      material.depthWrite = visibility > 0.62;
       const baseOpacity = Number(material.userData.goalBaseOpacity ?? 1);
+      const keepTransparent = material.userData.goalKeepTransparent === true;
+      const shouldUseTransparency =
+        keepTransparent || baseOpacity < 0.999 || visibility < 0.999;
+
+      if (material.transparent !== shouldUseTransparency) {
+        material.transparent = shouldUseTransparency;
+        material.needsUpdate = true;
+      }
+
+      material.depthWrite = !keepTransparent && visibility > 0.62;
       material.opacity = baseOpacity * visibility;
+
+      if (material instanceof THREE.MeshStandardMaterial) {
+        const baseEmissiveIntensity = Number(
+          material.userData.goalBaseEmissiveIntensity ?? material.emissiveIntensity,
+        );
+        const completedIdleGlow =
+          progress >= 1 && !reducedMotion && quality !== 'low'
+            ? 0.05 + Math.sin(elapsed * 0.78) * 0.018
+            : 0;
+        material.emissiveIntensity =
+          baseEmissiveIntensity * (1 + completedIdleGlow + successEnvelope * 0.65);
+      }
     });
 
     if (sweep.current && sweepMaterial.current) {
       sweep.current.visible = completion > 0.001 && !reducedMotion;
       sweep.current.rotation.z += safeDelta * 1.45;
       sweep.current.scale.setScalar(0.82 + (1 - completion) * 0.55);
-      sweepMaterial.current.opacity = completion * 0.22;
+      sweepMaterial.current.opacity = successEnvelope * 0.18;
     }
 
     if (phase !== 'idle' && transitionProgress.current < 1) {
@@ -217,7 +258,7 @@ function AnimatedGoalObject({
           <meshBasicMaterial
             ref={sweepMaterial}
             blending={THREE.AdditiveBlending}
-            color="#d7ff17"
+            color={GOAL_VISUAL_PALETTE.accentComplete}
             depthWrite={false}
             opacity={0}
             transparent
